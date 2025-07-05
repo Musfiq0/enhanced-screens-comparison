@@ -7,11 +7,11 @@
 [![GUI](https://img.shields.io/badge/Interface-GUI%20%2B%20CLI-orange)](https://github.com) 
 [![Quality](https://img.shields.io/badge/Quality-Actually%20Good-brightgreen)](https://github.com)
 
-> Ever wanted to compare your anime encodes but got tired of opening 47 different video players and taking manual screenshots? This tool does it all for you and even uploads the results to slow.pics automatically! 🚀
+> Ever wanted to compare your encodes but got tired of manually writing VapourSynth/AviSynth scripts for every single screenshot comparison? This tool automates the tedious screenshot workflow and uploads everything to slow.pics automatically! 🚀
 
 ## 🎯 What does this thing do?
 
-**TL;DR**: Drag videos → Get comparison screenshots → Automatic upload → Share with friends → Profit! 📈
+**TL;DR**: Load videos → Automated VapourSynth processing → Bulk screenshot generation → Auto-upload to slow.pics → No more manual script writing!
 
 - 🖼️ **Automatic screenshot generation** from multiple videos
 - 🎨 **Smart cropping** (bye bye black bars!)  
@@ -19,6 +19,8 @@
 - 🌐 **Auto-upload to slow.pics** (and opens in your browser like magic)
 - 🎭 **GUI for normies, CLI for pros** 
 - ⚡ **Actually fast** (when you have good hardware)
+- 🔧 **Multi-backend support** (VapourSynth, OpenCV, PIL with automatic fallback)
+- 🎪 **Beautiful console interface** with colored output and progress tracking
 
 ## 🚀 Getting Started (Choose Your Adventure)
 
@@ -77,11 +79,19 @@ START_HERE.bat
 # Direct way: Interactive mode (asks you questions like a friendly robot)
 python comparev2.py
 
-# Advanced stuff for pros
-python comparev2.py --mode multiple-sources --trim-start 100
-python comparev2.py --custom-frames 1000 2000 3000
-python comparev2.py --help  # When all else fails
+# Quick help and info
+python comparev2.py --help       # Show usage information
+python comparev2.py --demo       # Show detected video processing backends
+python comparev2.py --version    # Show version information
 ```
+
+**Enhanced Console Features:**
+- 🎨 **Beautiful colored output** with progress indicators
+- 🔄 **Real-time processing feedback** with percentage completion  
+- 🎪 **Professional ASCII art** and status messages
+- 🔧 **Automatic backend detection** (VapourSynth → OpenCV → PIL fallback)
+- 📊 **Detailed progress tracking** for each video and frame
+- 🧹 **Smart cleanup** of existing screenshots before generation
 
 ## 🎨 Cool Features That Actually Work
 
@@ -90,6 +100,9 @@ python comparev2.py --help  # When all else fails
 - **Resolution Magic**: Handles everything from potato quality to 4K without breaking
 - **Aspect Ratio Respect**: Won't stretch your waifus (that would be a crime)
 - **Trim & Pad**: Cut out intros/outros or sync videos that are slightly off
+- **Multi-Backend Support**: VapourSynth (premium quality) → OpenCV (reliable) → PIL (fallback)
+- **Robust Error Handling**: Graceful fallback when backends fail
+- **Smart Screenshot Generation**: Automatic cleanup and organized output
 
 ### 🎮 User Experience That Doesn't Suck  
 - **Professional Launcher**: START_HERE.bat with complete menu system
@@ -108,9 +121,11 @@ python comparev2.py --help  # When all else fails
 ## 🛠️ Technical Stuff (For the Curious)
 
 ### Processing Backends
-- **VapourSynth**: The good stuff (optional, but recommended for quality)
-- **OpenCV**: Reliable workhorse (included)
-- **PIL**: Basic but gets the job done (fallback)
+- **VapourSynth**: The premium choice (high-quality processing with awsmfunc support)
+- **OpenCV**: The reliable workhorse (fast and stable for most use cases)
+- **PIL**: The universal fallback (works everywhere, basic functionality)
+
+**Smart Backend Selection**: The tool automatically detects available libraries and uses the best one available. Check what's detected with `python comparev2.py --demo`
 
 ### What it Supports
 - **Input**: Pretty much any video format (MP4, MKV, AVI, etc.)
@@ -142,6 +157,28 @@ python comparev2.py --custom-frames 5000 10000 15000
 # Perfect for comparing action scenes or specific moments
 ```
 
+## 🎪 Console Experience
+
+The enhanced CLI version now features a professional console interface:
+
+### 📊 Progress Tracking
+- **Real-time Updates**: See exactly what's happening as it happens
+- **Percentage Progress**: Know how much work is left
+- **Frame-by-Frame Status**: Track individual screenshot generation
+- **Backend Information**: Clear indication of which processing mode is active
+
+### 🔧 Smart Backend Detection
+```bash
+# Check what's available on your system
+python comparev2.py --demo
+
+# Example output:
+# [OK] VapourSynth: Available  
+# [OK] OpenCV: Available
+# [OK] PIL/Pillow: Available
+# [MODE] Active Processing Mode: VAPOURSYNTH
+```
+
 ## 🐛 When Things Go Wrong
 
 ### "It's not working!"
@@ -152,9 +189,10 @@ python comparev2.py --custom-frames 5000 10000 15000
 5. Try turning it off and on again (seriously)
 
 ### "VapourSynth errors everywhere!"
-- Don't panic, it'll fall back to OpenCV
+- Don't panic! The tool automatically falls back to OpenCV, then PIL
 - Install VapourSynth properly if you want the best quality
-- Check `python comparev2.py --demo` to see what's detected
+- Check `python comparev2.py --demo` to see what backends are detected
+- All console output is color-coded to help identify the active backend
 
 ### "Upload failed!"
 - Check your internet connection  
@@ -166,6 +204,9 @@ python comparev2.py --custom-frames 5000 10000 15000
 - Check your source videos aren't corrupted
 ## 🎉 Recent Cool Stuff Added
 
+- ✅ **Complete console version rework** with robust screenshot generation
+- ✅ **Multi-backend fallback system** (VapourSynth → OpenCV → PIL)
+- ✅ **Beautiful colored console output** with real-time progress tracking
 - ✅ **Enhanced START_HERE.bat launcher** with complete menu system
 - ✅ **CLI option integration** - Easy access to console version via menu
 - ✅ **Complete crop preset overhaul** (now with ALL the formats)
@@ -173,6 +214,7 @@ python comparev2.py --custom-frames 5000 10000 15000
 - ✅ **Better error handling** (fewer random crashes)
 - ✅ **Improved UI** (less ugly, more functional)
 - ✅ **Fixed aspect ratios** (no more stretched anime girls)
+- ✅ **GUI-Console compatibility** - Both versions work independently
 
 ### 🚀 New Launcher Features
 - **Complete Menu System**: 10 organized options covering all functionality
@@ -186,7 +228,7 @@ python comparev2.py --custom-frames 5000 10000 15000
 
 ```
 📦 Your Download
-├── 🎬 comparev2.py          # CLI magic happens here
+├── 🎬 comparev2.py          # Enhanced CLI with colored output and robust processing
 ├── 🖼️ gui_app.py            # GUI for point-and-click folks  
 ├── 📋 requirements.txt      # What Python needs to not explode
 ├── 🔨 build_exe.py          # Makes the .exe file
@@ -329,14 +371,19 @@ python -c "import PyInstaller; print('Build tools ready')"
 ## 🆕 Recent Updates
 
 ### Version 2.0 Features
+- ✅ **Completely reworked console version** with robust multi-backend support
+- ✅ **Beautiful colored console interface** with real-time progress and status
+- ✅ **Smart backend detection and fallback** (VapourSynth → OpenCV → PIL)
+- ✅ **Enhanced error handling** with graceful degradation
+- ✅ **Improved screenshot generation** with automatic cleanup and organization
 - ✅ **Enhanced launcher system** with professional menu and CLI integration
 - ✅ **Complete crop preset system** with all common video formats
 - ✅ **Resize-first processing** for consistent crop behavior  
 - ✅ **Enhanced resolution support** from SD to 4K with proper scaling
 - ✅ **Smart aspect ratio handling** prevents image distortion
-- ✅ **Improved error handling** with comprehensive validation
 - ✅ **Better UI responsiveness** with scrollable dialogs
 - ✅ **Fixed Pillow warnings** for modern compatibility
+- ✅ **GUI-Console independence** - Both versions work flawlessly together
 
 ### Stability Improvements
 - ✅ **Thread-safe stop function** with instant response
