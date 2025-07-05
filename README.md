@@ -88,7 +88,7 @@ python comparev2.py --version    # Show version information
 **Enhanced Console Features:**
 - 🎨 **Beautiful colored output** with progress indicators
 - 🔄 **Real-time processing feedback** with percentage completion  
-- 🎪 **Professional ASCII art** and status messages
+- 🎪 **ASCII art** and status messages
 - 🔧 **Automatic backend detection** (VapourSynth → OpenCV → PIL fallback)
 - 📊 **Detailed progress tracking** for each video and frame
 - 🧹 **Smart cleanup** of existing screenshots before generation
@@ -105,12 +105,11 @@ python comparev2.py --version    # Show version information
 - **Smart Screenshot Generation**: Automatic cleanup and organized output
 
 ### 🎮 User Experience That Doesn't Suck  
-- **Professional Launcher**: START_HERE.bat with complete menu system
+- **Quick Launcher**: START_HERE.bat with complete menu system
 - **Dual Interface**: Choose GUI for ease or CLI for power
 - **One-Click Stop**: Panic button that actually works
 - **Progress Bars**: So you know it's not frozen
 - **Scrollable Everything**: Works on your tiny laptop screen
-- **No Installation Hell**: Just download and run
 - **Smart Dependencies**: Automatic library checking and installation
 
 ### 🌐 Upload Integration
@@ -122,8 +121,8 @@ python comparev2.py --version    # Show version information
 
 ### Processing Backends
 - **VapourSynth**: The premium choice (high-quality processing with awsmfunc support)
-- **OpenCV**: The reliable workhorse (fast and stable for most use cases)
-- **PIL**: The universal fallback (works everywhere, basic functionality)
+- **OpenCV**: The reliable workhorse (fast and stable for most use cases) [Yet to be worked on]
+- **PIL**: The universal fallback (works everywhere, basic functionality) [Yet to be worked on]
 
 **Smart Backend Selection**: The tool automatically detects available libraries and uses the best one available. Check what's detected with `python comparev2.py --demo`
 
@@ -159,7 +158,7 @@ python comparev2.py --custom-frames 5000 10000 15000
 
 ## 🎪 Console Experience
 
-The enhanced CLI version now features a professional console interface:
+The enhanced CLI version now features a interactive console interface:
 
 ### 📊 Progress Tracking
 - **Real-time Updates**: See exactly what's happening as it happens
@@ -216,11 +215,11 @@ python comparev2.py --demo
 - ✅ **Fixed aspect ratios** (no more stretched anime girls)
 - ✅ **GUI-Console compatibility** - Both versions work independently
 
-### 🚀 New Launcher Features
+### 🚀 Launcher Features
 - **Complete Menu System**: 10 organized options covering all functionality
 - **CLI Integration**: Direct access to console version from main menu
 - **Smart Dependencies**: Automatic checking and installation of required packages
-- **Professional Layout**: Clean ASCII art and logical option grouping
+- **Cool Layout**: Clean ASCII art and logical option grouping
 - **Build Integration**: Complete build system accessible from menu
 - **Maintenance Tools**: Built-in cleanup and dependency management
 
@@ -318,7 +317,7 @@ The tool includes professionally-designed crop presets for every common scenario
 - **Aspect Ratio Maintenance**: Smart resizing maintains proper proportions
 - **Format Detection**: Automatic handling of various video formats and codecs
 
-### Professional Workflow
+### Workflow
 - **Batch Processing**: Handle multiple comparisons efficiently
 - **Instant Control**: Stop processing at any time without data loss
 - **Progress Monitoring**: Real-time feedback with detailed status information
@@ -376,7 +375,7 @@ python -c "import PyInstaller; print('Build tools ready')"
 - ✅ **Smart backend detection and fallback** (VapourSynth → OpenCV → PIL)
 - ✅ **Enhanced error handling** with graceful degradation
 - ✅ **Improved screenshot generation** with automatic cleanup and organization
-- ✅ **Enhanced launcher system** with professional menu and CLI integration
+- ✅ **Enhanced launcher system** with interactive menu and CLI integration
 - ✅ **Complete crop preset system** with all common video formats
 - ✅ **Resize-first processing** for consistent crop behavior  
 - ✅ **Enhanced resolution support** from SD to 4K with proper scaling
@@ -398,6 +397,6 @@ This project is provided as-is for educational and personal use. Please ensure y
 
 ---
 
-**Enhanced Screenshot Comparison Tool** - Professional video comparison made simple.
+**Enhanced Screenshot Comparison Tool** - A hassle-free video comparison.
 
 For questions, issues, or contributions, please refer to the project repository.
