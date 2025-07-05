@@ -54,7 +54,7 @@ echo  ^> Main Menu - Choose your action:
 echo.
 echo  QUICK ACTIONS:
 echo     1. Run GUI Application (Recommended)
-echo     2. Run CLI/Console Version (comparev2.py)
+echo     2. Run Interactive Console Version
 echo     3. Setup Development Environment
 echo.
 echo  BUILD ACTIONS:
@@ -125,10 +125,10 @@ goto MAIN_MENU
 :RUN_CLI
 cls
 echo  +======================================================================+
-echo  ^|                        Running CLI/Console Version                   ^|
+echo  ^|                        Running Interactive Console Version           ^|
 echo  +======================================================================+
 echo.
-echo ^> Starting Enhanced Screenshot Comparison Tool CLI...
+echo ^> Starting Enhanced Screenshot Comparison Tool Console...
 echo.
 
 :: Quick dependency check
@@ -141,14 +141,14 @@ if errorlevel 1 (
 
 echo [OK] Dependencies check completed
 echo.
-echo [START] Launching CLI application...
-echo [INFO] This will run the interactive console version
-echo [CTRL+C] Press Ctrl+C to exit the CLI at any time
+echo [START] Launching Interactive Console...
+echo [INFO] This will run with step-by-step prompts
+echo [CTRL+C] Press Ctrl+C to exit at any time
 echo.
 python comparev2.py
 
 echo.
-echo [DONE] CLI application closed.
+echo [DONE] Console application closed.
 pause
 goto MAIN_MENU
 

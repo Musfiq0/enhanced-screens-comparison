@@ -8,7 +8,6 @@ Supports multiple video source comparison and slow.pics upload.
 Version: 2.0 - Dynamic Fallback Edition
 """
 
-import argparse
 import sys
 import os
 import requests
@@ -1850,362 +1849,6 @@ def show_demo():
     
     colored_print(f"\n[MODE] Active Processing Mode: {PROCESSING_MODE.upper()}", Colors.CYAN, bold=True)
 
-# =============================================================================
-# COMMAND LINE ARGUMENT PARSING
-# ==============================================================================
-
-def parse_arguments():
-    """Parse command line arguments"""
-    parser = argparse.ArgumentParser(
-        description="Enhanced Screenshot Comparison Tool - Generate comparison screenshots from videos",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  python comparev2.py --help                     Show this help
-  python comparev2.py                            Interactive mode (default)
-  python comparev2.py --demo                     Show demo information
-  python comparev2.py --mode multiple-sources    Multiple sources comparison mode
-  python comparev2.py --mode source-vs-encode    Source vs encode comparison mode
-  
-Trim/Pad Examples:
-  --trim-start 100 --trim-end 50                 Trim 100 frames from start, 50 from end
-  --pad-start 24 --pad-end 24                    Add 24 black frames at start and end
-  --source-trim-start 50 --encode-pad-end 12     Different settings for source and encode
-        """
-    )
-    
-    # Mode selection
-    parser.add_argument('--mode', choices=['multiple-sources', 'source-vs-encode'], 
-                       help='Comparison mode: multiple-sources or source-vs-encode')
-    
-    # Video files
-    parser.add_argument('--videos', nargs='+', help='List of video files to compare')
-    parser.add_argument('--source', help='Source video file (for source-vs-encode mode)')
-    parser.add_argument('--encode', help='Encode video file (for source-vs-encode mode)')
-    
-    # Frame options
-    parser.add_argument('--frame-interval', type=int, default=150, 
-                       help='Frame interval for screenshots (default: 150)')
-    parser.add_argument('--custom-frames', nargs='+', type=int,
-                       help='Custom frame numbers to capture')
-    
-    # Global trim/pad options (applied to all videos in multiple-sources mode)
-    parser.add_argument('--trim-start', type=int, default=0,
-                       help='Frames to trim from start (default: 0)')
-    parser.add_argument('--trim-end', type=int, default=0,
-                       help='Frames to trim from end (default: 0)')
-    parser.add_argument('--pad-start', type=int, default=0,
-                       help='Black frames to add at start (default: 0)')
-    parser.add_argument('--pad-end', type=int, default=0,
-                       help='Black frames to add at end (default: 0)')
-    
-    # Source-specific trim/pad options (for source-vs-encode mode)
-    parser.add_argument('--source-trim-start', type=int, default=0,
-                       help='Frames to trim from source start (default: 0)')
-    parser.add_argument('--source-trim-end', type=int, default=0,
-                       help='Frames to trim from source end (default: 0)')
-    parser.add_argument('--source-pad-start', type=int, default=0,
-                       help='Black frames to add to source start (default: 0)')
-    parser.add_argument('--source-pad-end', type=int, default=0,
-                       help='Black frames to add to source end (default: 0)')
-    
-    # Encode-specific trim/pad options (for source-vs-encode mode)
-    parser.add_argument('--encode-trim-start', type=int, default=0,
-                       help='Frames to trim from encode start (default: 0)')
-    parser.add_argument('--encode-trim-end', type=int, default=0,
-                       help='Frames to trim from encode end (default: 0)')
-    parser.add_argument('--encode-pad-start', type=int, default=0,
-                       help='Black frames to add to encode start (default: 0)')
-    parser.add_argument('--encode-pad-end', type=int, default=0,
-                       help='Black frames to add to encode end (default: 0)')
-    
-    # Upload options
-    parser.add_argument('--upload', action='store_true',
-                       help='Upload comparison to slow.pics')
-    parser.add_argument('--show-name', help='Show name for slow.pics upload')
-    parser.add_argument('--season-number', help='Season number for slow.pics upload')
-    
-    # Other options
-    parser.add_argument('--demo', '-d', action='store_true',
-                       help='Show demo information')
-    parser.add_argument('--version', '-v', action='store_true',
-                       help='Show version information')
-    
-    if len(sys.argv) > 1:
-        args = parser.parse_args()
-        
-        if args.version:
-            colored_print("Enhanced VapourSynth Screenshot Comparison Tool v2.0", Colors.GREEN, bold=True)
-            colored_print("Dynamic backend support with VapourSynth, OpenCV, and PIL fallbacks", Colors.CYAN)
-            colored_print("Now with enhanced trim/pad support for all comparison modes!", Colors.MAGENTA)
-            sys.exit(0)
-        
-        if args.demo:
-            show_demo()
-            sys.exit(0)
-        
-        return args
-    else:
-        # Interactive mode if no arguments provided
-        return None
-
-def apply_cli_args_to_config(args, config):
-    """Apply CLI arguments to configuration"""
-    if not args:
-        return config
-    
-    # Apply mode
-    if args.mode:
-        if args.mode == 'multiple-sources':
-            config['comparison_type'] = 'multiple_sources'
-        elif args.mode == 'source-vs-encode':
-            config['comparison_type'] = 'source_vs_encode'
-    
-    # Apply frame options
-    if args.frame_interval:
-        config['frame_interval'] = args.frame_interval
-    if args.custom_frames:
-        config['custom_frames'] = args.custom_frames
-    
-    # Apply upload options
-    if args.upload:
-        config['upload_to_slowpics'] = True
-    if args.show_name:
-        config['show_name'] = args.show_name
-    if args.season_number:
-        config['season_number'] = args.season_number
-    
-    # Apply trim/pad options to videos
-    if 'videos' in config:
-        for video in config['videos']:
-            # For multiple sources mode, apply global trim/pad
-            if config.get('comparison_type') == 'multiple_sources':
-                if args.trim_start:
-                    video['trim_start'] = args.trim_start
-                if args.trim_end:
-                    video['trim_end'] = args.trim_end
-                if args.pad_start:
-                    video['pad_start'] = args.pad_start
-                if args.pad_end:
-                    video['pad_end'] = args.pad_end
-            
-            # For source vs encode mode, apply specific trim/pad
-            elif config.get('comparison_type') == 'source_vs_encode':
-                if video.get('is_source', True):
-                    if args.source_trim_start:
-                        video['trim_start'] = args.source_trim_start
-                    if args.source_trim_end:
-                        video['trim_end'] = args.source_trim_end
-                    if args.source_pad_start:
-                        video['pad_start'] = args.source_pad_start
-                    if args.source_pad_end:
-                        video['pad_end'] = args.source_pad_end
-                else:
-                    if args.encode_trim_start:
-                        video['trim_start'] = args.encode_trim_start
-                    if args.encode_trim_end:
-                        video['trim_end'] = args.encode_trim_end
-                    if args.encode_pad_start:
-                        video['pad_start'] = args.encode_pad_start
-                    if args.encode_pad_end:
-                        video['pad_end'] = args.encode_pad_end
-    
-    return config
-
-def parse_arguments_legacy():
-    """Legacy argument parsing for backwards compatibility"""
-    if len(sys.argv) > 1:
-        arg = sys.argv[1].lower()
-        if arg in ['--help', '-h', 'help']:
-            show_help()
-            sys.exit(0)
-        elif arg in ['--demo', '-d', 'demo']:
-            show_demo()
-            sys.exit(0)
-        elif arg in ['--version', '-v']:
-            colored_print("Enhanced VapourSynth Screenshot Comparison Tool v2.0", Colors.GREEN, bold=True)
-            colored_print("Dynamic backend support with VapourSynth, OpenCV, and PIL fallbacks", Colors.CYAN)
-            sys.exit(0)
-        else:
-            colored_print(f"[ERROR] Unknown argument: {arg}", Colors.RED, bold=True)
-            colored_print("Use --help for usage information", Colors.YELLOW)
-            sys.exit(1)
-
-# Only run main execution code when script is executed directly, not when imported
-if __name__ == "__main__":
-    # Parse command line arguments first
-    cli_args = parse_arguments()
-    
-    # If we have CLI arguments, we might skip interactive mode
-    if cli_args:
-        colored_print("CLI mode detected - processing arguments...", Colors.CYAN, bold=True)
-        parse_arguments_legacy()  # Handle legacy arguments for now
-    else:
-        parse_arguments_legacy()  # Handle legacy help/demo/version
-
-    # Get user configuration (interactive or from CLI)
-    config = get_user_input()
-    
-    # Apply CLI arguments to override interactive config
-    config = apply_cli_args_to_config(cli_args, config)
-
-    # Check if this is upload-only mode
-    if config.get('upload_only', False):
-        print(f"\n=== Upload Only Mode ===")
-        print(f"Uploading existing screenshots to slow.pics...")
-        
-        # Use existing data from config
-        frames = config['frames']
-        processed_videos = config['processed_videos']
-        
-        print(f"Found {len(frames)} frames and {len(processed_videos)} sources")
-        
-        # Upload to slow.pics
-        comparison_url = upload_to_slowpics(config, frames, processed_videos)
-        if comparison_url:
-            colored_print(f"\n[WEB] Your comparison has been uploaded and opened in your browser!", Colors.GREEN, bold=True)
-        else:
-            colored_print(f"\n[FOLDER] Screenshots are available locally in the Screenshots/ folder", Colors.BLUE, bold=True)
-        
-        print("\n[OK] Upload complete!")
-        sys.exit(0)
-
-    # Continue with normal screenshot generation mode
-    processed_videos = []
-    video_info_clips = []
-
-    print_header(f"LOADING AND PROCESSING {len(config['videos'])} VIDEO SOURCES")
-
-    for i, video_config in enumerate(config['videos']):
-        colored_print(f"[VIDEO] Loading {video_config['name']}: {video_config['path']}", Colors.CYAN, bold=True)
-    
-    # Load video using dynamic processor
-    video_clip = processor.load_video(video_config['path'])
-    
-    # Get video properties
-    if processor.mode == "vapoursynth":
-        original_frames = len(video_clip)
-        original_width, original_height = video_clip.width, video_clip.height
-    elif processor.mode == "opencv":
-        original_frames = processor.get_frame_count(video_clip)
-        original_width = int(video_clip.get(cv2.CAP_PROP_FRAME_WIDTH))
-        original_height = int(video_clip.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    else:
-        # PIL mode - limited support
-        original_frames = 1
-        original_width, original_height = 1920, 1080
-    
-    # Determine resize target for this video
-    resize_target = None
-    resize_config = config.get('resize_config', {})
-    
-    if resize_config.get('resize_method') == 'individual':
-        # Check if this video has individual resize settings
-        if video_config['name'] in resize_config.get('individual_resizes', {}):
-            resize_target = resize_config['individual_resizes'][video_config['name']]
-    elif resize_config.get('resize_method') == 'common':
-        # Use common resolution for all videos
-        resize_target = resize_config.get('common_resolution')
-    
-    # Determine if this is a source video
-    is_source = video_config.get('is_source', False)
-    if config.get('comparison_type') == 'multiple_sources':
-        is_source = True  # All videos in multiple sources mode are treated as sources
-    
-    # Apply processing (including cropping and resizing with proper order)
-    if processor.mode == "vapoursynth":
-        processed_clip = apply_processing(
-            video_clip,
-            video_config['trim_start'],
-            video_config['trim_end'],
-            video_config['pad_start'],
-            video_config['pad_end'],
-            video_config.get('crop', None),
-            resize_target,
-            is_source
-        )
-        processed_frames = len(processed_clip)
-        processed_width, processed_height = processed_clip.width, processed_clip.height
-    else:
-        # For non-VapourSynth modes, store video object and processing parameters
-        # Processing will be done per-frame during screenshot generation
-        processed_clip = {
-            'video': video_clip,
-            'trim_start': video_config['trim_start'],
-            'trim_end': video_config['trim_end'],
-            'pad_start': video_config['pad_start'],
-            'pad_end': video_config['pad_end'],
-            'crop': video_config.get('crop', None),
-            'resize_target': resize_target,
-            'is_source': is_source,
-            'original_width': original_width,
-            'original_height': original_height
-        }
-        processed_frames = original_frames  # Will be calculated properly later
-        processed_width, processed_height = resize_target if resize_target else (original_width, original_height)
-    
-    processed_videos.append({
-        'clip': processed_clip,
-        'name': video_config['name'],
-        'original_frames': original_frames,
-        'processed_frames': processed_frames
-    })
-    
-    # Set output for preview (VapourSynth only)
-    if processor.mode == "vapoursynth":
-        # Try to set output if in VapourSynth environment
-        try:
-            if hasattr(vs, 'set_output'):
-                vs.set_output(processed_clip, name=video_config['name'])
-            elif 'set_output' in globals() and callable(globals()['set_output']):
-                globals()['set_output'](processed_clip, name=video_config['name'])
-        except (NameError, AttributeError, TypeError):
-            pass  # Ignore if not in VapourSynth environment
-    
-    colored_print(f"  [INFO] Original frames: {original_frames}", Colors.WHITE)
-    colored_print(f"  [MODE] Processed frames: {processed_frames}", Colors.GREEN)
-    colored_print(f"  [?] Original resolution: {original_width}x{original_height}", Colors.WHITE)
-    colored_print(f"  [ART] Final resolution: {processed_width}x{processed_height}", Colors.GREEN)
-    
-    # Show resize info if applied
-    if resize_target and resize_target != (original_width, original_height):
-        colored_print(f"  [TOOL] Resized: {original_width}x{original_height} [?] {resize_target[0]}x{resize_target[1]}", Colors.YELLOW)
-    
-    # Only show trim/pad info for multiple sources comparison
-    if config.get('comparison_type') == 'multiple_sources':
-        if video_config['trim_start'] or video_config['trim_end']:
-            colored_print(f"  [?] Trimmed: start={video_config['trim_start']}, end={video_config['trim_end']}", Colors.BLUE)
-        if video_config['pad_start'] or video_config['pad_end']:
-            colored_print(f"  [?] Padded: start={video_config['pad_start']}, end={video_config['pad_end']}", Colors.BLUE)
-    
-    # Show crop info if applied
-    if video_config.get('crop'):
-        if video_config['crop'] == "auto":
-            colored_print(f"  [INFO] Cropping: Auto-detected", Colors.MAGENTA)
-        elif isinstance(video_config['crop'], dict):
-            crop = video_config['crop']
-            colored_print(f"  [?] Cropping: Manual (L:{crop['left']}, R:{crop['right']}, T:{crop['top']}, B:{crop['bottom']})", Colors.MAGENTA)
-
-    # Generate frame numbers for comparison
-    total_frames = min(video['processed_frames'] for video in processed_videos)
-
-    if config['custom_frames']:
-        # Use custom frame numbers
-        frames = [f for f in config['custom_frames'] if 0 <= f < total_frames]
-        colored_print(f"\n[MODE] Using custom frames: {frames}", Colors.BLUE, bold=True)
-        if len(frames) != len(config['custom_frames']):
-            excluded = [f for f in config['custom_frames'] if f >= total_frames]
-            colored_print(f"[WARN] Excluded frames beyond video length: {excluded}", Colors.YELLOW)
-    else:
-        # Use frame interval
-        frames = list(range(0, total_frames, config['frame_interval']))
-        colored_print(f"\n[?] Using frame interval {config['frame_interval']}: {len(frames)} screenshots will be generated", Colors.BLUE, bold=True)
-
-    colored_print(f"[INFO] Total frames available for comparison: {total_frames}", Colors.BLUE, bold=True)
-    colored_print(f"[IMAGE] Number of screenshots to generate: {len(frames)}", Colors.GREEN, bold=True)
-    colored_print(f"[?] Total screenshots to generate: {len(frames) * len(processed_videos)}", Colors.MAGENTA, bold=True)
-
-# Add frame info and titles to each clip for screenshots (mode-dependent)
 def add_frame_info(clip_or_data, title):
     """Add frame information overlay - works with both VapourSynth and fallback modes"""
     if processor.mode == "vapoursynth":
@@ -2230,25 +1873,6 @@ def add_frame_info(clip_or_data, title):
             'title': title,
             'overlay_enabled': True
         }
-
-    # Apply frame info to all video clips
-    for i, video in enumerate(processed_videos):
-        if processor.mode == "vapoursynth":
-            video_info_clip = add_frame_info(video['clip'], video['name'])
-            video_info_clips.append({
-                'clip': video_info_clip,
-                'name': video['name']
-            })
-        else:
-            # For fallback modes, store processing data
-            video_info_clips.append({
-                'clip': add_frame_info(video['clip'], video['name']),
-                'name': video['name']
-            })
-
-    # Generate screenshots using dynamic processor
-    screenshots_folder = "Screenshots"
-    os.makedirs(screenshots_folder, exist_ok=True)
 
 def apply_frame_processing(video_data, frame_number):
     """Apply processing to a single frame in fallback modes"""
@@ -2285,13 +1909,263 @@ def apply_frame_processing(video_data, frame_number):
     
     return frame
 
-def generate_screenshots():
-    """Generate screenshots using the appropriate processor backend"""
+def process_and_generate_screenshots(config):
+    """Complete video processing and screenshot generation pipeline"""
+    
+    # Initialize video storage
+    processed_videos = []
+    video_info_clips = []
+
+    print_header(f"LOADING AND PROCESSING {len(config['videos'])} VIDEO SOURCES")
+
+    # Load and process each video
+    for i, video_config in enumerate(config['videos']):
+        colored_print(f"[VIDEO] Loading {video_config['name']}: {video_config['path']}", Colors.CYAN, bold=True)
+        
+        try:
+            # Load video using dynamic processor
+            video_clip = processor.load_video(video_config['path'])
+            
+            # Get video properties
+            if processor.mode == "vapoursynth":
+                original_frames = len(video_clip)
+                original_width, original_height = video_clip.width, video_clip.height
+            elif processor.mode == "opencv":
+                original_frames = processor.get_frame_count(video_clip)
+                original_width = int(video_clip.get(cv2.CAP_PROP_FRAME_WIDTH))
+                original_height = int(video_clip.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            else:
+                # PIL mode - limited support
+                original_frames = 1
+                original_width, original_height = 1920, 1080
+            
+            # Determine resize target for this video
+            resize_target = None
+            resize_config = config.get('resize_config', {})
+            
+            if resize_config.get('resize_method') == 'individual':
+                # Check if this video has individual resize settings
+                if video_config['name'] in resize_config.get('individual_resizes', {}):
+                    resize_target = resize_config['individual_resizes'][video_config['name']]
+            elif resize_config.get('resize_method') == 'common':
+                # Use common resolution for all videos
+                resize_target = resize_config.get('common_resolution')
+            
+            # Determine if this is a source video
+            is_source = video_config.get('is_source', False)
+            if config.get('comparison_type') == 'multiple_sources':
+                is_source = True  # All videos in multiple sources mode are treated as sources
+            
+            # Apply processing (including cropping and resizing with proper order)
+            if processor.mode == "vapoursynth":
+                processed_clip = apply_processing(
+                    video_clip,
+                    video_config['trim_start'],
+                    video_config['trim_end'],
+                    video_config['pad_start'],
+                    video_config['pad_end'],
+                    video_config.get('crop', None),
+                    resize_target,
+                    is_source
+                )
+                processed_frames = len(processed_clip)
+                processed_width, processed_height = processed_clip.width, processed_clip.height
+            else:
+                # For non-VapourSynth modes, store video object and processing parameters
+                # Processing will be done per-frame during screenshot generation
+                processed_clip = {
+                    'video': video_clip,
+                    'trim_start': video_config['trim_start'],
+                    'trim_end': video_config['trim_end'],
+                    'pad_start': video_config['pad_start'],
+                    'pad_end': video_config['pad_end'],
+                    'crop': video_config.get('crop', None),
+                    'resize_target': resize_target,
+                    'is_source': is_source,
+                    'original_width': original_width,
+                    'original_height': original_height
+                }
+                processed_frames = original_frames  # Will be calculated properly later
+                processed_width, processed_height = resize_target if resize_target else (original_width, original_height)
+            
+            processed_videos.append({
+                'clip': processed_clip,
+                'name': video_config['name'],
+                'original_frames': original_frames,
+                'processed_frames': processed_frames
+            })
+            
+            colored_print(f"  [INFO] Original frames: {original_frames}", Colors.WHITE)
+            colored_print(f"  [MODE] Processed frames: {processed_frames}", Colors.GREEN)
+            colored_print(f"  [📐] Original resolution: {original_width}x{original_height}", Colors.WHITE)
+            colored_print(f"  [🎯] Final resolution: {processed_width}x{processed_height}", Colors.GREEN)
+            
+            # Show resize info if applied
+            if resize_target and resize_target != (original_width, original_height):
+                colored_print(f"  [🔧] Resized: {original_width}x{original_height} → {resize_target[0]}x{resize_target[1]}", Colors.YELLOW)
+            
+            # Only show trim/pad info for multiple sources comparison
+            if config.get('comparison_type') == 'multiple_sources':
+                if video_config['trim_start'] or video_config['trim_end']:
+                    colored_print(f"  [✂️] Trimmed: start={video_config['trim_start']}, end={video_config['trim_end']}", Colors.BLUE)
+                if video_config['pad_start'] or video_config['pad_end']:
+                    colored_print(f"  [📏] Padded: start={video_config['pad_start']}, end={video_config['pad_end']}", Colors.BLUE)
+            
+            # Show crop info if applied
+            if video_config.get('crop'):
+                if video_config['crop'] == "auto":
+                    colored_print(f"  [INFO] Cropping: Auto-detected", Colors.MAGENTA)
+                elif isinstance(video_config['crop'], dict):
+                    crop = video_config['crop']
+                    colored_print(f"  [✂️] Cropping: Manual (L:{crop['left']}, R:{crop['right']}, T:{crop['top']}, B:{crop['bottom']})", Colors.MAGENTA)
+        
+        except Exception as e:
+            colored_print(f"[ERROR] Failed to load video {video_config['name']}: {e}", Colors.RED, bold=True)
+            colored_print(f"[TIP] Check that the file path is correct and the video format is supported", Colors.YELLOW)
+            continue
+
+    if not processed_videos:
+        colored_print(f"[ERROR] No videos were successfully loaded!", Colors.RED, bold=True)
+        return False
+
+    # Generate frame numbers for comparison
+    total_frames = min(video['processed_frames'] for video in processed_videos)
+
+    if config['custom_frames']:
+        # Use custom frame numbers
+        frames = [f for f in config['custom_frames'] if 0 <= f < total_frames]
+        colored_print(f"\n[MODE] Using custom frames: {frames}", Colors.BLUE, bold=True)
+        if len(frames) != len(config['custom_frames']):
+            excluded = [f for f in config['custom_frames'] if f >= total_frames]
+            colored_print(f"[WARN] Excluded frames beyond video length: {excluded}", Colors.YELLOW)
+    else:
+        # Use frame interval
+        frames = list(range(0, total_frames, config['frame_interval']))
+        colored_print(f"\n[📊] Using frame interval {config['frame_interval']}: {len(frames)} screenshots will be generated", Colors.BLUE, bold=True)
+
+    colored_print(f"[INFO] Total frames available for comparison: {total_frames}", Colors.BLUE, bold=True)
+    colored_print(f"[📸] Number of screenshots to generate: {len(frames)}", Colors.GREEN, bold=True)
+    colored_print(f"[📈] Total screenshots to generate: {len(frames) * len(processed_videos)}", Colors.MAGENTA, bold=True)
+
+    # Apply frame info to all video clips
+    for i, video in enumerate(processed_videos):
+        if processor.mode == "vapoursynth":
+            video_info_clip = add_frame_info(video['clip'], video['name'])
+            video_info_clips.append({
+                'clip': video_info_clip,
+                'name': video['name']
+            })
+        else:
+            # For fallback modes, store processing data
+            video_info_clips.append({
+                'clip': add_frame_info(video['clip'], video['name']),
+                'name': video['name']
+            })
+
+    # Execute screenshot generation
+    print_header("GENERATING SCREENSHOTS")
+    colored_print(f"[VIDEO] Processing {len(frames)} frames from {len(processed_videos)} sources...", Colors.CYAN, bold=True)
+    colored_print(f"[📊] Total screenshots to generate: {len(frames) * len(processed_videos)}", Colors.MAGENTA, bold=True)
+    colored_print(f"[🔧] Using {processor.mode.upper()} processor", Colors.BLUE, bold=True)
+    
+    # Generate screenshots using the robust function
+    success = generate_screenshots_robust(frames, video_info_clips)
+    
+    if success:
+        colored_print(f"\n[✅] Generated {len(frames) * len(processed_videos)} screenshots in source-specific folders", Colors.GREEN, bold=True)
+        
+        print_header(f"{config.get('comparison_type', 'multiple_sources').replace('_', ' ').title()} Summary")
+        
+        for video in processed_videos:
+            colored_print(f"[OK] {video['name']}: {video['processed_frames']} frames (original: {video['original_frames']})", Colors.GREEN)
+            if processor.mode == "vapoursynth":
+                # Need to get actual processed clip for VapourSynth mode
+                processed_clip = video['clip']
+                if hasattr(processed_clip, 'width') and hasattr(processed_clip, 'height'):
+                    colored_print(f"    [📐] Resolution: {processed_clip.width}x{processed_clip.height}", Colors.CYAN)
+                else:
+                    colored_print(f"    [📐] Resolution: Processing applied", Colors.CYAN)
+            else:
+                # For fallback modes, show target resolution
+                video_data = video['clip']
+                if isinstance(video_data, dict):
+                    resize_target = video_data.get('resize_target')
+                    if resize_target:
+                        colored_print(f"    [🎯] Target resolution: {resize_target[0]}x{resize_target[1]}", Colors.CYAN)
+                    else:
+                        original_w = video_data.get('original_width', 1920)
+                        original_h = video_data.get('original_height', 1080)
+                        colored_print(f"    [📐] Resolution: {original_w}x{original_h}", Colors.CYAN)
+        
+        colored_print(f"\n[📁] Screenshots organized by source:", Colors.YELLOW, bold=True)
+        for video in processed_videos:
+            colored_print(f"  - Screenshots/{video['name']}/", Colors.CYAN)
+        colored_print(f"[📋] Filename pattern: SourceName_000000.png", Colors.WHITE)
+        colored_print(f"[MODE] Frame numbers used: {frames}", Colors.BLUE)
+        colored_print(f"[🔧] Using {processor.mode.upper()} backend for frame processing", Colors.MAGENTA)
+        
+        if config.get('comparison_type') == 'source_vs_encode':
+            colored_print(f"[🆚] Source vs Encode comparison with cropping support", Colors.GREEN, bold=True)
+        else:
+            colored_print(f"[📁] Multiple sources comparison", Colors.GREEN, bold=True)
+        
+        # Show resize information
+        resize_config = config.get('resize_config', {})
+        if resize_config.get('resize_method') == 'individual':
+            individual_resizes = resize_config.get('individual_resizes', {})
+            if individual_resizes:
+                colored_print(f"[🔧] Individual video resizing applied using Spline36:", Colors.YELLOW, bold=True)
+                for name, resolution in individual_resizes.items():
+                    colored_print(f"    {name}: resized to {resolution[0]}x{resolution[1]}", Colors.CYAN)
+            else:
+                colored_print(f"[📐] No individual resizing applied", Colors.WHITE)
+        elif resize_config.get('resize_method') == 'common':
+            common_res = resize_config.get('common_resolution')
+            colored_print(f"[🔧] All videos resized to {common_res[0]}x{common_res[1]} using Spline36", Colors.YELLOW, bold=True)
+        elif resize_config.get('resize_method') == 'none':
+            colored_print(f"[📐] Original resolutions maintained", Colors.WHITE)
+        
+        # Show processing order for source vs encode
+        if config.get('comparison_type') == 'source_vs_encode':
+            # Count sources and show comparison order
+            source_videos = [v for v in processed_videos if v.get('name') != 'Encode']
+            encode_videos = [v for v in processed_videos if v.get('name') == 'Encode']
+            
+            if len(source_videos) == 1:
+                colored_print(f"[🔄] Comparison order: {source_videos[0]['name']} vs Encode", Colors.BLUE, bold=True)
+            else:
+                source_names = [v['name'] for v in source_videos]
+                colored_print(f"[🔄] Comparison order: {source_names[0]} vs Encode vs {' vs '.join(source_names[1:])}", Colors.BLUE, bold=True)
+            
+            colored_print(f"[📋] Processing order: Sources (resize → crop), Encode (crop only - NO RESIZE)", Colors.MAGENTA)
+            colored_print(f"[WARN] Encode videos are never resized to prevent unwanted upscaling", Colors.YELLOW, bold=True)
+        
+        # Upload to slow.pics if requested
+        if config['upload_to_slowpics']:
+            comparison_url = upload_to_slowpics(config, frames, processed_videos)
+            if comparison_url:
+                colored_print(f"\n[🌐] Your comparison has been uploaded and opened in your browser!", Colors.GREEN, bold=True)
+            else:
+                colored_print(f"\n[📁] Screenshots are available locally in the Screenshots/ folder", Colors.BLUE, bold=True)
+        else:
+            colored_print(f"\n[📁] Screenshots saved locally in the Screenshots/ folder", Colors.BLUE, bold=True)
+        
+        return True
+    else:
+        colored_print(f"\n[❌] Screenshot generation failed!", Colors.RED, bold=True)
+        return False
+
+def generate_screenshots(frames, video_info_clips):
+    """Compatibility wrapper for GUI import - delegates to generate_screenshots_robust"""
+    return generate_screenshots_robust(frames, video_info_clips)
+
+def generate_screenshots_robust(frames, video_info_clips):
+    """Robust screenshot generation that works across all backends"""
     base_screenshots_folder = "Screenshots"
     os.makedirs(base_screenshots_folder, exist_ok=True)
     
     # Clean up existing screenshots when generating new ones
-    colored_print(f"[?] Cleaning up existing screenshots...", Colors.YELLOW)
+    colored_print(f"[🧹] Cleaning up existing screenshots...", Colors.YELLOW)
     for video_info in video_info_clips:
         source_folder = os.path.join(base_screenshots_folder, video_info['name'])
         if os.path.exists(source_folder):
@@ -2306,169 +2180,138 @@ def generate_screenshots():
             colored_print(f"  [OK] Cleaned Screenshots/{video_info['name']}/", Colors.GREEN)
         else:
             os.makedirs(source_folder, exist_ok=True)
-            colored_print(f"  [FOLDER] Created Screenshots/{video_info['name']}/", Colors.CYAN)
+            colored_print(f"  [📁] Created Screenshots/{video_info['name']}/", Colors.CYAN)
     
-    colored_print(f"\n[?] Generating {len(frames)} screenshots for {len(video_info_clips)} sources...", Colors.MAGENTA, bold=True)
+    colored_print(f"\n[📸] Generating {len(frames)} screenshots for {len(video_info_clips)} sources...", Colors.MAGENTA, bold=True)
+    
+    success_count = 0
+    error_count = 0
     
     if processor.mode == "vapoursynth":
-        # VapourSynth mode - use fpng for high quality
-        screenshot_clips = []
-        
+        # VapourSynth mode - use improved PIL-based saving instead of fpng
         for i, frame_num in enumerate(frames):
             progress = (i + 1) / len(frames) * 100
-            colored_print(f"[REFRESH] Processing frame {frame_num} ({i+1}/{len(frames)}) - {progress:.1f}%", Colors.BLUE)
+            colored_print(f"[🔄] Processing frame {frame_num} ({i+1}/{len(frames)}) - {progress:.1f}%", Colors.BLUE)
             
             for video_info in video_info_clips:
-                # Create source-specific folder
-                source_folder = os.path.join(base_screenshots_folder, video_info['name'])
-                os.makedirs(source_folder, exist_ok=True)
-                
-                # Screenshot from this video source
-                src_frame = video_info['clip'][frame_num:frame_num+1]
-                src_frame_rgb = core.resize.Bicubic(src_frame, format=vs.RGB24, matrix_in_s="709")
-                
-                # Use source-specific folder and cleaner filename
-                filename = f"{source_folder}/{video_info['name']}_{frame_num:06d}_%06d.png"
-                # Use fpng for high quality PNG writing
-                src_screenshot = core.fpng.Write(src_frame_rgb, filename)
-                screenshot_clips.append(src_screenshot)
-        
-        # Combine all screenshot clips
-        if screenshot_clips:
-            combined = core.std.Splice(screenshot_clips)
-            return combined
-        else:
-            return processed_videos[0]['clip'][0:1]  # fallback
+                try:
+                    # Create source-specific folder
+                    source_folder = os.path.join(base_screenshots_folder, video_info['name'])
+                    os.makedirs(source_folder, exist_ok=True)
+                    
+                    # Get single frame from VapourSynth clip
+                    src_frame = video_info['clip'][frame_num:frame_num+1]
+                    
+                    # Save using the processor's improved save method
+                    filename = os.path.join(source_folder, f"{video_info['name']}_{frame_num:06d}.png")
+                    processor.save_frame_as_png(src_frame, filename)
+                    
+                    success_count += 1
+                    
+                except Exception as e:
+                    colored_print(f"[ERROR] Error processing frame {frame_num} for {video_info['name']}: {e}", Colors.RED)
+                    error_count += 1
     
     else:
-        # Fallback mode - process frames individually
+        # Fallback mode - process frames individually  
         for i, frame_num in enumerate(frames):
             progress = (i + 1) / len(frames) * 100
-            colored_print(f"[REFRESH] Processing frame {frame_num} ({i+1}/{len(frames)}) - {progress:.1f}%", Colors.BLUE)
+            colored_print(f"[🔄] Processing frame {frame_num} ({i+1}/{len(frames)}) - {progress:.1f}%", Colors.BLUE)
             
             for video_info in video_info_clips:
-                # Create source-specific folder
-                source_folder = os.path.join(base_screenshots_folder, video_info['name'])
-                os.makedirs(source_folder, exist_ok=True)
-                
                 try:
+                    # Create source-specific folder
+                    source_folder = os.path.join(base_screenshots_folder, video_info['name'])
+                    os.makedirs(source_folder, exist_ok=True)
+                    
                     # Process the frame
                     processed_frame = apply_frame_processing(video_info['clip'], frame_num)
                     
                     # Save the frame
-                    filename = f"{source_folder}/{video_info['name']}_{frame_num:06d}.png"
+                    filename = os.path.join(source_folder, f"{video_info['name']}_{frame_num:06d}.png")
                     processor.save_frame_as_png(processed_frame, filename)
+                    
+                    success_count += 1
                     
                 except Exception as e:
                     colored_print(f"[ERROR] Error processing frame {frame_num} for {video_info['name']}: {e}", Colors.RED)
-        
-        # For fallback modes, return a dummy value since we're not using VapourSynth outputs
-        return None
+                    error_count += 1
+    
+    # Report results
+    total_expected = len(frames) * len(video_info_clips)
+    colored_print(f"\n[📊] Screenshot generation complete:", Colors.GREEN, bold=True)
+    colored_print(f"  [✅] Successfully generated: {success_count}/{total_expected}", Colors.GREEN)
+    if error_count > 0:
+        colored_print(f"  [❌] Errors encountered: {error_count}", Colors.RED)
+    
+    return success_count > 0
 
-    # Generate the screenshot clip
-    if processor.mode == "vapoursynth":
-        screenshot_output = generate_screenshots()
-        # Try to set output if in VapourSynth environment
-        try:
-            if hasattr(vs, 'set_output'):
-                vs.set_output(screenshot_output, name="Screenshots")
-            elif 'set_output' in globals() and callable(globals()['set_output']):
-                globals()['set_output'](screenshot_output, name="Screenshots")
-        except (NameError, AttributeError, TypeError):
-            pass  # Ignore if not in VapourSynth environment
-    else:
-        # In fallback mode, just generate screenshots directly
-        generate_screenshots()
+# =============================================================================
+# COMMAND LINE ARGUMENT PARSING
+# ==============================================================================
 
-    # Execute screenshot generation and display results
-    print_header("GENERATING SCREENSHOTS")
-    colored_print(f"[VIDEO] Processing {len(frames)} frames from {len(processed_videos)} sources...", Colors.CYAN, bold=True)
-    colored_print(f"[?] Total screenshots to generate: {len(frames) * len(processed_videos)}", Colors.MAGENTA, bold=True)
-    colored_print(f"[TOOL] Using {processor.mode.upper()} processor", Colors.BLUE, bold=True)
-    
-    if processor.mode == "vapoursynth":
-        # Force evaluation of all frames in the screenshot output to trigger fpng.Write
-        for i in range(screenshot_output.num_frames):
-            if i % 10 == 0:  # Progress indicator
-                progress = (i + 1) / screenshot_output.num_frames * 100
-                colored_print(f"[REFRESH] Evaluating frame {i+1}/{screenshot_output.num_frames} ({progress:.1f}%)", Colors.BLUE)
-            screenshot_output.get_frame(i)
-    
-    colored_print(f"\n[OK] Generated {len(frames) * len(processed_videos)} screenshots in source-specific folders", Colors.GREEN, bold=True)
-    
-    print_header(f"{config.get('comparison_type', 'multiple_sources').replace('_', ' ').title()} Summary")
-    
-    for video in processed_videos:
-        colored_print(f"[OK] {video['name']}: {video['processed_frames']} frames (original: {video['original_frames']})", Colors.GREEN)
-        if processor.mode == "vapoursynth":
-            colored_print(f"    [?] Resolution: {video['clip'].width}x{video['clip'].height}", Colors.CYAN)
-        else:
-            # For fallback modes, show target resolution
-            video_data = video['clip']
-            if isinstance(video_data, dict) and 'data' in video_data:
-                resize_target = video_data['data'].get('resize_target')
-                if resize_target:
-                    colored_print(f"    [?] Target resolution: {resize_target[0]}x{resize_target[1]}", Colors.CYAN)
-                else:
-                    original_w = video_data['data'].get('original_width', 1920)
-                    original_h = video_data['data'].get('original_height', 1080)
-                    colored_print(f"    [?] Resolution: {original_w}x{original_h}", Colors.CYAN)
-    
-    colored_print(f"\n[FOLDER] Screenshots organized by source:", Colors.YELLOW, bold=True)
-    for video in processed_videos:
-        colored_print(f"  - Screenshots/{video['name']}/", Colors.CYAN)
-    colored_print(f"[COPY] Filename pattern: SourceName_000000.png", Colors.WHITE)
-    colored_print(f"[MODE] Frame numbers used: {frames}", Colors.BLUE)
-    if processor.mode == "vapoursynth":
-        colored_print(f"[?] Using fpng for high quality PNG generation", Colors.MAGENTA)
-    else:
-        colored_print(f"[TOOL] Using {processor.mode.upper()} backend for frame processing", Colors.MAGENTA)
-    
-    if config.get('comparison_type') == 'source_vs_encode':
-        colored_print(f"[?] Source vs Encode comparison with cropping support", Colors.GREEN, bold=True)
-    else:
-        colored_print(f"[FOLDER] Multiple sources comparison", Colors.GREEN, bold=True)
-    
-    # Show resize information
-    resize_config = config.get('resize_config', {})
-    if resize_config.get('resize_method') == 'individual':
-        individual_resizes = resize_config.get('individual_resizes', {})
-        if individual_resizes:
-            colored_print(f"[TOOL] Individual video resizing applied using Spline36:", Colors.YELLOW, bold=True)
-            for name, resolution in individual_resizes.items():
-                colored_print(f"    {name}: resized to {resolution[0]}x{resolution[1]}", Colors.CYAN)
-        else:
-            colored_print(f"[?] No individual resizing applied", Colors.WHITE)
-    elif resize_config.get('resize_method') == 'common':
-        common_res = resize_config.get('common_resolution')
-        colored_print(f"[TOOL] All videos resized to {common_res[0]}x{common_res[1]} using Spline36", Colors.YELLOW, bold=True)
-    elif resize_config.get('resize_method') == 'none':
-        colored_print(f"[?] Original resolutions maintained", Colors.WHITE)
-    
-    # Show processing order for source vs encode
-    if config.get('comparison_type') == 'source_vs_encode':
-        # Count sources and show comparison order
-        source_videos = [v for v in processed_videos if v.get('name') != 'Encode']
-        encode_videos = [v for v in processed_videos if v.get('name') == 'Encode']
+# Only run main execution code when script is executed directly, not when imported
+if __name__ == "__main__":
+    # Check for basic help/demo/version arguments only
+    if len(sys.argv) > 1:
+        arg = sys.argv[1].lower()
+        if arg in ['--help', '-h', 'help']:
+            show_help()
+            sys.exit(0)
+        elif arg in ['--demo', '-d', 'demo']:
+            show_demo()
+            sys.exit(0)
+        elif arg in ['--version', '-v']:
+            colored_print("Enhanced VapourSynth Screenshot Comparison Tool v2.0", Colors.CYAN, bold=True)
+            colored_print("Dynamic backend support with VapourSynth, OpenCV, and PIL fallbacks", Colors.CYAN)
+            sys.exit(0)
+
+    # Run in interactive mode only
+    try:
+        config = get_user_input()
+
+        # Check if this is upload-only mode
+        if config.get('upload_only', False):
+            print_header("UPLOAD ONLY MODE")
+            colored_print(f"Uploading existing screenshots to slow.pics...", Colors.BLUE, bold=True)
+            
+            # Use existing data from config
+            frames = config['frames']
+            processed_videos = config['processed_videos']
+            
+            colored_print(f"Found {len(frames)} frames and {len(processed_videos)} sources", Colors.GREEN)
+            
+            # Upload to slow.pics
+            comparison_url = upload_to_slowpics(config, frames, processed_videos)
+            if comparison_url:
+                colored_print(f"\n[🌐] Your comparison has been uploaded and opened in your browser!", Colors.GREEN, bold=True)
+            else:
+                colored_print(f"\n[📁] Screenshots are available locally in the Screenshots/ folder", Colors.BLUE, bold=True)
+            
+            colored_print("\n[✅] Upload complete!", Colors.GREEN, bold=True)
+            sys.exit(0)
+
+        # Normal screenshot generation mode
+        colored_print(f"\n[🎬] Starting {config.get('comparison_type', 'multiple_sources').replace('_', ' ').title()} processing...", Colors.CYAN, bold=True)
         
-        if len(source_videos) == 1:
-            colored_print(f"[REFRESH] Comparison order: {source_videos[0]['name']} vs Encode", Colors.BLUE, bold=True)
-        else:
-            source_names = [v['name'] for v in source_videos]
-            colored_print(f"[REFRESH] Comparison order: {source_names[0]} vs Encode vs {' vs '.join(source_names[1:])}", Colors.BLUE, bold=True)
+        # Process videos and generate screenshots
+        success = process_and_generate_screenshots(config)
         
-        colored_print(f"[?] Processing order: Sources (resize [?] crop), Encode (crop only - NO RESIZE)", Colors.MAGENTA)
-        colored_print(f"[WARN] Encode videos are never resized to prevent unwanted upscaling", Colors.YELLOW, bold=True)
-    
-    # Upload to slow.pics if requested
-    if config['upload_to_slowpics']:
-        comparison_url = upload_to_slowpics(config, frames, processed_videos)
-        if comparison_url:
-            colored_print(f"\n[WEB] Your comparison has been uploaded and opened in your browser!", Colors.GREEN, bold=True)
+        if success:
+            colored_print(f"\n[✅] All operations completed successfully!", Colors.GREEN, bold=True)
         else:
-            colored_print(f"\n[FOLDER] Screenshots are available locally in the Screenshots/ folder", Colors.BLUE, bold=True)
-    else:
-        colored_print(f"\n[FOLDER] Screenshots saved locally in the Screenshots/ folder", Colors.BLUE, bold=True)
+            colored_print(f"\n[❌] Some operations failed. Check the logs above for details.", Colors.RED, bold=True)
+            sys.exit(1)
+            
+    except KeyboardInterrupt:
+        colored_print(f"\n[⚠️] Operation cancelled by user", Colors.YELLOW, bold=True)
+        sys.exit(0)
+    except Exception as e:
+        colored_print(f"\n[❌] Unexpected error: {e}", Colors.RED, bold=True)
+        colored_print(f"[🔧] Traceback:", Colors.YELLOW)
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
 # Usage:
 # Simply run: python comparev2.py
