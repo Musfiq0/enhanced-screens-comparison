@@ -1,0 +1,29 @@
+# Enhanced Screenshot Comparison Tool - Complete Dependencies
+# This file contains all dependencies for both CLI and GUI modes
+
+# Core dependencies
+requests>=2.32.0
+requests-toolbelt>=1.0.0
+
+# Video/image processing
+opencv-python>=4.9.0
+numpy>=1.26.0
+pillow>=10.2.0
+
+# Terminal output and progress
+colorama>=0.4.6
+tqdm>=4.66.0
+
+# GUI and executable creation (for GUI mode and building)
+pyinstaller>=6.0.0
+auto-py-to-exe>=2.46.0
+
+# Optional VapourSynth (requires system installation)
+# Uncomment the lines below if you have VapourSynth installed:
+# vapoursynth>=70
+# awsmfunc>=0.9.0
+
+# Note: VapourSynth must be installed separately from:
+# https://github.com/vapoursynth/vapoursynth/releases
+# After system installation, uncomment the lines above and run:
+# pip install vapoursynth awsmfunc
