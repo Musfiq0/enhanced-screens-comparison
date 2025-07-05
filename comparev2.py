@@ -485,7 +485,7 @@ def get_upload_only_config():
     
     frames = sorted(list(all_frames))
     
-    colored_print(f"[FOLDER] Found {len(source_folders)} video sources:", Colors.GREEN, bold=True)
+    colored_print(f"[DIRS] Found {len(source_folders)} video sources:", Colors.GREEN, bold=True)
     for i, source in enumerate(source_folders):
         source_path = os.path.join(screenshots_folder, source)
         png_files = [f for f in os.listdir(source_path) if f.endswith('.png')]
@@ -509,7 +509,7 @@ def get_upload_only_config():
     colored_print(f"\n[INFO] Total screenshots to upload: {len(frames) * len(source_folders)}", Colors.MAGENTA, bold=True)
     
     # Get slow.pics upload options
-    colored_print("\n[?] slow.pics Upload Options", Colors.YELLOW, bold=True)
+    colored_print("\n[UPLOAD] slow.pics Upload Options", Colors.YELLOW, bold=True)
     show_name = input(f"{Colors.CYAN}Enter show/movie name: {Colors.END}").strip()
     if not show_name:
         colored_print("[ERROR] Show/movie name is required for upload. Exiting.", Colors.RED, bold=True)
@@ -517,8 +517,8 @@ def get_upload_only_config():
     
     # Ask if it's a TV series (has seasons)
     colored_print("\nIs this a TV series with seasons?", Colors.YELLOW, bold=True)
-    colored_print("1. [?] Yes (TV series)", Colors.GREEN)
-    colored_print("2. [VIDEO] No (Movie)", Colors.BLUE)
+    colored_print("1. [TV] Yes (TV series)", Colors.GREEN)
+    colored_print("2. [MOVIE] No (Movie)", Colors.BLUE)
     
     while True:
         try:
@@ -570,8 +570,8 @@ def get_user_input():
     
     # First, ask for comparison type
     colored_print("\nChoose comparison type:", Colors.YELLOW, bold=True)
-    colored_print("1. [FOLDER] Multiple sources comparison (compare different sources)", Colors.GREEN)
-    colored_print("2. [?] Source vs Encode comparison (compare original with encoded version)", Colors.BLUE)
+    colored_print("1. [DIR] Multiple sources comparison (compare different sources)", Colors.GREEN)
+    colored_print("2. [VS] Source vs Encode comparison (compare original with encoded version)", Colors.BLUE)
     
     while True:
         try:
@@ -606,9 +606,9 @@ def get_user_input():
     if has_existing_screenshots:
         colored_print("\n[INFO] Found existing screenshots in the Screenshots folder!", Colors.YELLOW, bold=True)
         colored_print("\nWhat would you like to do?", Colors.CYAN, bold=True)
-        colored_print("1. [?] Generate new screenshots (will overwrite existing ones)", Colors.GREEN)
-        colored_print("2. [?] Upload existing screenshots to slow.pics", Colors.BLUE)
-        colored_print("3. [?] Exit", Colors.RED)
+        colored_print("1. [NEW] Generate new screenshots (will overwrite existing ones)", Colors.GREEN)
+        colored_print("2. [UP] Upload existing screenshots to slow.pics", Colors.BLUE)
+        colored_print("3. [EXIT] Exit", Colors.RED)
         
         while True:
             try:
@@ -1503,12 +1503,12 @@ def apply_processing(clip, trim_start=0, trim_end=0, pad_start=0, pad_end=0, cro
                         colored_print(f"  [WARN] Crop results in very small resolution: {new_width}x{new_height}", Colors.YELLOW)
                         colored_print(f"  [WARN] This may not be intended - please verify crop values", Colors.YELLOW)
                         clip = core.std.Crop(clip, left=left, right=right, top=top, bottom=bottom)
-                        colored_print(f"  [?] Applied crop: left={left}, right={right}, top={top}, bottom={bottom}", Colors.CYAN)
-                        colored_print(f"  [?] New resolution after crop: {new_width}x{new_height}", Colors.GREEN)
+                        colored_print(f"  [?[CROP] Applied crop: left={left}, right={right}, top={top}, bottom={bottom}", Colors.CYAN)
+                        colored_print(f"  [?[RES] New resolution after crop: {new_width}x{new_height}", Colors.GREEN)
                     else:
                         clip = core.std.Crop(clip, left=left, right=right, top=top, bottom=bottom)
-                        colored_print(f"  [?] Applied crop: left={left}, right={right}, top={top}, bottom={bottom}", Colors.CYAN)
-                        colored_print(f"  [?] New resolution after crop: {new_width}x{new_height}", Colors.GREEN)
+                        colored_print(f"  [?[CROP] Applied crop: left={left}, right={right}, top={top}, bottom={bottom}", Colors.CYAN)
+                        colored_print(f"  [?[RES] New resolution after crop: {new_width}x{new_height}", Colors.GREEN)
     else:
         # ENCODE: Crop first (if any), then resize
         # Apply cropping first for encode videos (unusual but possible)
@@ -1542,12 +1542,12 @@ def apply_processing(clip, trim_start=0, trim_end=0, pad_start=0, pad_end=0, cro
                         colored_print(f"  [WARN] Crop results in very small resolution: {new_width}x{new_height}", Colors.YELLOW)
                         colored_print(f"  [WARN] This may not be intended - please verify crop values", Colors.YELLOW)
                         clip = core.std.Crop(clip, left=left, right=right, top=top, bottom=bottom)
-                        colored_print(f"  [?] Applied crop: left={left}, right={right}, top={top}, bottom={bottom}", Colors.CYAN)
-                        colored_print(f"  [?] New resolution: {new_width}x{new_height}", Colors.GREEN)
+                        colored_print(f"  [?[CROP] Applied crop: left={left}, right={right}, top={top}, bottom={bottom}", Colors.CYAN)
+                        colored_print(f"  [?[RES] New resolution: {new_width}x{new_height}", Colors.GREEN)
                     else:
                         clip = core.std.Crop(clip, left=left, right=right, top=top, bottom=bottom)
-                        colored_print(f"  [?] Applied crop: left={left}, right={right}, top={top}, bottom={bottom}", Colors.CYAN)
-                        colored_print(f"  [?] New resolution: {new_width}x{new_height}", Colors.GREEN)
+                        colored_print(f"  [?[CROP] Applied crop: left={left}, right={right}, top={top}, bottom={bottom}", Colors.CYAN)
+                        colored_print(f"  [?[RES] New resolution: {new_width}x{new_height}", Colors.GREEN)
         
         # Apply resizing after cropping for encode videos
         # NOTE: In source vs encode mode, encode videos should NEVER be resized
@@ -1555,7 +1555,7 @@ def apply_processing(clip, trim_start=0, trim_end=0, pad_start=0, pad_end=0, cro
         if resize and resize != (clip.width, clip.height):
             if not is_source:
                 colored_print(f"  [WARN] WARNING: Resize was requested for encode video but will be skipped to prevent upscaling", Colors.YELLOW, bold=True)
-                colored_print(f"  [?] Keeping original encode resolution: {clip.width}x{clip.height}", Colors.CYAN)
+                colored_print(f"  [?[KEEP] Keeping original encode resolution: {clip.width}x{clip.height}", Colors.CYAN)
             else:
                 target_width, target_height = resize
                 colored_print(f"  [TOOL] Resizing from {clip.width}x{clip.height} to {target_width}x{target_height} using Spline36", Colors.YELLOW)
@@ -1565,7 +1565,7 @@ def apply_processing(clip, trim_start=0, trim_end=0, pad_start=0, pad_end=0, cro
     if trim_start > 0 or trim_end > 0:
         end_frame = clip.num_frames - trim_end if trim_end > 0 else clip.num_frames
         clip = clip[trim_start:end_frame]
-        colored_print(f"  [?] Applied trim: start={trim_start}, end={trim_end}", Colors.BLUE)
+        colored_print(f"  [?[TRIM] Applied trim: start={trim_start}, end={trim_end}", Colors.BLUE)
     
     # Apply padding
     if pad_start > 0:
@@ -1606,8 +1606,8 @@ def apply_processing_crop_first(clip, trim_start=0, trim_end=0, pad_start=0, pad
                 
                 if new_width > 0 and new_height > 0:
                     clip = core.std.Crop(clip, left=left, right=right, top=top, bottom=bottom)
-                    colored_print(f"  [?] Applied crop: left={left}, right={right}, top={top}, bottom={bottom}", Colors.CYAN)
-                    colored_print(f"  [?] New resolution after crop: {new_width}x{new_height}", Colors.GREEN)
+                    colored_print(f"  [?[CROP] Applied crop: left={left}, right={right}, top={top}, bottom={bottom}", Colors.CYAN)
+                    colored_print(f"  [?[RES] New resolution after crop: {new_width}x{new_height}", Colors.GREEN)
         
         # Apply resizing after cropping for source videos with aspect ratio adjustment
         if resize and resize != (clip.width, clip.height):
@@ -1644,7 +1644,7 @@ def upload_to_slowpics(config, frames, processed_videos):
     else:
         collection_name = f"{config['show_name']} {vs_string}"
     
-    colored_print(f"[?] Collection name: {collection_name}", Colors.CYAN, bold=True)
+    colored_print(f"[?[NAME] Collection name: {collection_name}", Colors.CYAN, bold=True)
     
     try:
         # Generate browser ID

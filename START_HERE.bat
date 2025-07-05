@@ -54,35 +54,37 @@ echo  ^> Main Menu - Choose your action:
 echo.
 echo  QUICK ACTIONS:
 echo     1. Run GUI Application (Recommended)
-echo     2. Setup Development Environment
+echo     2. Run CLI/Console Version (comparev2.py)
+echo     3. Setup Development Environment
 echo.
 echo  BUILD ACTIONS:
-echo     3. Build Windows Executable (.exe)
-echo     4. Create Complete Distribution Package
-echo     5. Build with Advanced Options
+echo     4. Build Windows Executable (.exe)
+echo     5. Create Complete Distribution Package
+echo     6. Build with Advanced Options
 echo.
 echo  MAINTENANCE:
-echo     6. Install/Update Dependencies
-echo     7. Check Application Icon
-echo     8. Clean Build Files
-echo     9. Show Project Information
+echo     7. Install/Update Dependencies
+echo     8. Check Application Icon
+echo     9. Clean Build Files
+echo    10. Show Project Information
 echo.
 echo     0. Exit
 echo.
-set /p choice="Enter your choice (0-9): "
+set /p choice="Enter your choice (0-10): "
 
 if "%choice%"=="1" goto RUN_GUI
-if "%choice%"=="2" goto SETUP_DEV
-if "%choice%"=="3" goto BUILD_EXE
-if "%choice%"=="4" goto BUILD_DIST
-if "%choice%"=="5" goto BUILD_ADVANCED
-if "%choice%"=="6" goto INSTALL_DEPS
-if "%choice%"=="7" goto CREATE_ICON
-if "%choice%"=="8" goto CLEAN_BUILD
-if "%choice%"=="9" goto SHOW_INFO
+if "%choice%"=="2" goto RUN_CLI
+if "%choice%"=="3" goto SETUP_DEV
+if "%choice%"=="4" goto BUILD_EXE
+if "%choice%"=="5" goto BUILD_DIST
+if "%choice%"=="6" goto BUILD_ADVANCED
+if "%choice%"=="7" goto INSTALL_DEPS
+if "%choice%"=="8" goto CREATE_ICON
+if "%choice%"=="9" goto CLEAN_BUILD
+if "%choice%"=="10" goto SHOW_INFO
 if "%choice%"=="0" goto EXIT
 
-echo [X] Invalid choice. Please select 0-9.
+echo [X] Invalid choice. Please select 0-10.
 timeout /t 2 >nul
 goto MAIN_MENU
 
@@ -117,6 +119,36 @@ python gui_app.py
 
 echo.
 echo [DONE] GUI application closed.
+pause
+goto MAIN_MENU
+
+:RUN_CLI
+cls
+echo  +======================================================================+
+echo  ^|                        Running CLI/Console Version                   ^|
+echo  +======================================================================+
+echo.
+echo ^> Starting Enhanced Screenshot Comparison Tool CLI...
+echo.
+
+:: Quick dependency check
+echo [INFO] Checking core dependencies...
+python -c "import cv2, PIL, numpy, requests" 2>nul
+if errorlevel 1 (
+    echo [WARN] Some dependencies missing. Installing...
+    pip install --quiet pillow opencv-python numpy requests requests-toolbelt colorama
+)
+
+echo [OK] Dependencies check completed
+echo.
+echo [START] Launching CLI application...
+echo [INFO] This will run the interactive console version
+echo [CTRL+C] Press Ctrl+C to exit the CLI at any time
+echo.
+python comparev2.py
+
+echo.
+echo [DONE] CLI application closed.
 pause
 goto MAIN_MENU
 
@@ -388,7 +420,7 @@ echo [STATUS] All core features implemented and tested
 echo.
 echo [FEATURES]
 echo   - GUI Application with modern Windows interface
-echo   - CLI tool for automation and scripting
+echo   - CLI/Console tool for automation and scripting
 echo   - Multiple video processing backends (VapourSynth, OpenCV, PIL)
 echo   - Source vs Encode and Multiple Sources comparison modes
 echo   - Automatic slow.pics upload integration
@@ -403,7 +435,10 @@ echo   - requirements.txt: All dependencies
 echo   - build_exe.py: Executable builder
 echo   - README.md: Complete documentation
 echo.
-echo [BUILD] To build executable: Choose option 3 from main menu
+echo [USAGE]
+echo   - GUI Mode: Choose option 1 from main menu
+echo   - CLI Mode: Choose option 2 from main menu
+echo   - Build EXE: Choose option 4 from main menu
 echo [DOCS] See README.md for complete documentation
 echo.
 pause

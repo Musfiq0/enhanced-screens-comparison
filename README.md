@@ -24,9 +24,12 @@
 
 ### 🎮 I just want it to work (Recommended)
 ```bash
-# Download the .exe file and double-click it
-# That's literally it
-ScreenshotComparison.exe
+# Double-click START_HERE.bat and choose your option:
+# 1. GUI Application (Point and click)
+# 2. CLI/Console Version (Command line)
+# 4. Build Windows Executable
+
+START_HERE.bat
 ```
 
 ### 🤓 I like Python and want to tinker
@@ -34,7 +37,12 @@ ScreenshotComparison.exe
 git clone https://github.com/your-repo/Enhanced-Screenshot-Comparison-Tool
 cd Enhanced-Screenshot-Comparison-Tool
 pip install -r requirements.txt
+
+# GUI Mode
 python gui_app.py
+
+# CLI Mode  
+python comparev2.py
 ```
 
 ### 🔨 I want to build my own because reasons
@@ -62,7 +70,11 @@ python build_exe.py
 ### ⌨️ CLI Mode (For the command line warriors)
 
 ```bash
-# Interactive mode (asks you questions like a friendly robot)
+# Easy way: Use the launcher
+START_HERE.bat
+# Choose option 2: Run CLI/Console Version
+
+# Direct way: Interactive mode (asks you questions like a friendly robot)
 python comparev2.py
 
 # Advanced stuff for pros
@@ -80,10 +92,13 @@ python comparev2.py --help  # When all else fails
 - **Trim & Pad**: Cut out intros/outros or sync videos that are slightly off
 
 ### 🎮 User Experience That Doesn't Suck  
+- **Professional Launcher**: START_HERE.bat with complete menu system
+- **Dual Interface**: Choose GUI for ease or CLI for power
 - **One-Click Stop**: Panic button that actually works
 - **Progress Bars**: So you know it's not frozen
 - **Scrollable Everything**: Works on your tiny laptop screen
 - **No Installation Hell**: Just download and run
+- **Smart Dependencies**: Automatic library checking and installation
 
 ### 🌐 Upload Integration
 - **Auto slow.pics**: Generates comparison page and opens in browser
@@ -104,11 +119,11 @@ python comparev2.py --help  # When all else fails
 
 ## 🎭 Examples That Actually Help
 
-### Anime Release Comparison
+### Various Streaming Sources Comparison
 ```bash
 # Compare different anime releases
 python comparev2.py --mode multiple-sources
-# Add: Netflix rip, Funimation rip, Your encode
+# Add: Netflix rip, Amazon rip, Crunchyroll rip
 # Result: Beautiful comparison showing quality differences
 ```
 
@@ -130,9 +145,11 @@ python comparev2.py --custom-frames 5000 10000 15000
 ## 🐛 When Things Go Wrong
 
 ### "It's not working!"
-1. Check if you have videos in a supported format
-2. Make sure you have enough disk space
-3. Try turning it off and on again (seriously)
+1. **Use START_HERE.bat** for the best experience (handles dependencies automatically)
+2. Check if you have videos in a supported format
+3. Make sure you have enough disk space
+4. Try the CLI version (option 2) if GUI has issues
+5. Try turning it off and on again (seriously)
 
 ### "VapourSynth errors everywhere!"
 - Don't panic, it'll fall back to OpenCV
@@ -149,11 +166,21 @@ python comparev2.py --custom-frames 5000 10000 15000
 - Check your source videos aren't corrupted
 ## 🎉 Recent Cool Stuff Added
 
+- ✅ **Enhanced START_HERE.bat launcher** with complete menu system
+- ✅ **CLI option integration** - Easy access to console version via menu
 - ✅ **Complete crop preset overhaul** (now with ALL the formats)
 - ✅ **Resize-first processing** (crop values work consistently)  
 - ✅ **Better error handling** (fewer random crashes)
 - ✅ **Improved UI** (less ugly, more functional)
 - ✅ **Fixed aspect ratios** (no more stretched anime girls)
+
+### 🚀 New Launcher Features
+- **Complete Menu System**: 10 organized options covering all functionality
+- **CLI Integration**: Direct access to console version from main menu
+- **Smart Dependencies**: Automatic checking and installation of required packages
+- **Professional Layout**: Clean ASCII art and logical option grouping
+- **Build Integration**: Complete build system accessible from menu
+- **Maintenance Tools**: Built-in cleanup and dependency management
 
 ## 📁 Project Structure
 
@@ -163,7 +190,8 @@ python comparev2.py --custom-frames 5000 10000 15000
 ├── 🖼️ gui_app.py            # GUI for point-and-click folks  
 ├── 📋 requirements.txt      # What Python needs to not explode
 ├── 🔨 build_exe.py          # Makes the .exe file
-├── 🚀 START_HERE.bat        # Double-click to launch
+├── 🚀 START_HERE.bat        # Main launcher with menu (GUI + CLI)
+├── 🏃 run_gui.bat           # Direct GUI launcher
 └── 📸 Screenshots/          # Where your results live
 ```
 
@@ -223,8 +251,8 @@ Enhanced-Screenshot-Comparison-Tool/
 ├── 📦 Dependencies
 │   └── requirements.txt          # All dependencies
 ├── 🚀 Quick Launch
-│   ├── START_HERE.bat            # Main launcher
-│   └── run_gui.bat              # GUI launcher  
+│   ├── START_HERE.bat            # Main launcher with complete menu
+│   └── run_gui.bat              # Direct GUI launcher  
 ├── 📸 Output
 │   ├── dist/                    # Built executable
 │   └── Screenshots/             # Generated screenshots
@@ -301,6 +329,7 @@ python -c "import PyInstaller; print('Build tools ready')"
 ## 🆕 Recent Updates
 
 ### Version 2.0 Features
+- ✅ **Enhanced launcher system** with professional menu and CLI integration
 - ✅ **Complete crop preset system** with all common video formats
 - ✅ **Resize-first processing** for consistent crop behavior  
 - ✅ **Enhanced resolution support** from SD to 4K with proper scaling
