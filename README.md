@@ -17,7 +17,7 @@
 - 🎨 **Smart cropping** (bye bye black bars!)  
 - 📐 **Intelligent resizing** (4K → 1080p without breaking aspect ratios)
 - 🌐 **Auto-upload to slow.pics** (and opens in your browser like magic)
-- 🎭 **GUI for normies, CLI for pros** 
+- 🎭 **GUI for normies, Console for nerds** 
 - ⚡ **Actually fast** (when you have good hardware)
 
 ## 🚀 Getting Started (Choose Your Adventure)
@@ -67,20 +67,33 @@ python build_exe.py
 4. **Hit Generate** → Watch the magic happen ✨
 5. **Get results** → Screenshots saved locally + auto-uploaded to slow.pics
 
-### ⌨️ CLI Mode (For the command line warriors)
+### ⌨️ Console Mode (For the command line warriors)
 
 ```bash
 # Easy way: Use the launcher
 START_HERE.bat
-# Choose option 2: Run CLI/Console Version
+# Choose option 2: Run Console Version
 
 # Direct way: Interactive mode (asks you questions like a friendly robot)
 python comparev2.py
 
-# Advanced stuff for pros
-python comparev2.py --mode multiple-sources --trim-start 100
-python comparev2.py --custom-frames 1000 2000 3000
-python comparev2.py --help  # When all else fails
+# Quick help and info
+python comparev2.py --help       # Show usage information
+python comparev2.py --demo       # Show detected video processing backends
+python comparev2.py --version    # Show version information
+```
+**Example Console Output:**
+```
+[INFO] Detecting available video processing libraries...
+[OK] VapourSynth detected and imported successfully
+[OK] awsmfunc detected and imported successfully
+[MODE] Using VapourSynth mode (high-quality video processing)
+
+[🎬] Starting Multiple Sources processing...
+[🔄] Processing frame 5000 (1/10) - 10.0%
+[🔄] Processing frame 10000 (2/10) - 20.0%
+[📊] Screenshot generation complete:
+[✅] Successfully generated: 20/20
 ```
 
 ## 🎨 Cool Features That Actually Work
