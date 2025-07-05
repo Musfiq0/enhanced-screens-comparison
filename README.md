@@ -131,31 +131,6 @@ python comparev2.py --version    # Show version information
 - **Output**: High-quality PNG screenshots  
 - **Platforms**: Windows 10/11 (sorry Linux users, PRs welcome 😅)
 
-## 🎭 Examples That Actually Help
-
-### Various Streaming Sources Comparison
-```bash
-# Compare different anime releases
-python comparev2.py --mode multiple-sources
-# Add: Netflix rip, Amazon rip, Crunchyroll rip
-# Result: Beautiful comparison showing quality differences
-```
-
-### Encode Quality Check  
-```bash
-# See if your encode is trash
-python comparev2.py --mode source-vs-encode
-# Add: Original BD rip vs Your compressed version
-# Result: Detailed comparison to cry about compression artifacts
-```
-
-### Custom Frame Analysis
-```bash
-# Check specific scenes
-python comparev2.py --custom-frames 5000 10000 15000
-# Perfect for comparing action scenes or specific moments
-```
-
 ## 🎪 Console Experience
 
 The enhanced CLI version now features a interactive console interface:
