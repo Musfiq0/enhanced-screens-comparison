@@ -2108,11 +2108,12 @@ def process_and_generate_screenshots(config):
             colored_print(f"  [INFO] Original frames: {original_frames}", Colors.WHITE)
             colored_print(f"  [MODE] Processed frames: {processed_frames}", Colors.GREEN)
             colored_print(f"  [📐] Original resolution: {original_width}x{original_height}", Colors.WHITE)
-            colored_print(f"  [🎯] Final resolution: {processed_width}x{processed_height}", Colors.GREEN)
             
-            # Show resize info if applied
+            # Show resize info if applied (before final resolution for clarity)
             if resize_target and resize_target != (original_width, original_height):
                 colored_print(f"  [🔧] Resized: {original_width}x{original_height} → {resize_target[0]}x{resize_target[1]}", Colors.YELLOW)
+            
+            colored_print(f"  [🎯] Final resolution: {processed_width}x{processed_height}", Colors.GREEN)
             
             # Only show trim/pad info for multiple sources comparison
             if config.get('comparison_type') == 'multiple_sources':
