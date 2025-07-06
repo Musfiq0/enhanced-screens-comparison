@@ -64,12 +64,22 @@ python build_exe.py
 3. **Pick your poison**:
    - `Multiple Sources` → Compare different releases of the same anime
    - `Source vs Encode` → Compare your encode against the original
-4. **Add videos** → Click "Add Video" and configure them:
-   - Give them nice names like "Netflix" or "My Trash Encode"
+4. **Add videos** → Choose your method:
+   - **🆕 Drag & Drop**: Simply drag video files from Windows Explorer into the app
+   - **Classic Method**: Click "Add Video" button and browse for files
+   - Configure each video with nice names like "Netflix" or "My Trash Encode"
    - Pick from **tons of crop presets** (letterbox, streaming logos, dirty lines, etc.)
    - Choose target resolution (480p to 4K because why not)
 5. **Hit Generate** → Watch the magic happen ✨
 6. **Get results** → Screenshots saved locally + auto-uploaded to slow.pics with proper naming
+
+#### 🆕 New Drag & Drop Features
+- **Persistent Drop Zone**: Drag area stays visible for adding multiple videos
+- **Smart File Detection**: Automatically validates video formats (MP4, MKV, AVI, MOV, WMV, FLV, WEBM, M4V)
+- **Auto Configuration**: Configuration dialog opens automatically for each dropped video
+- **Multiple File Support**: Drop several videos at once - each gets its own configuration
+- **Visual Feedback**: Drop zone changes appearance during drag operations
+- **Progress Tracking**: Shows current video count and encourages adding more
 
 ### ⌨️ Console Mode (For the command line warriors)
 
@@ -109,6 +119,8 @@ python comparev2.py --version    # Show version information
 - **Trim & Pad**: Cut out intros/outros or sync videos that are slightly off
 
 ### 🎮 User Experience That Doesn't Suck  
+- **🆕 Drag & Drop Interface**: Drag videos directly from Windows Explorer - no more clicking through folders
+- **Persistent Drop Zone**: Add multiple videos easily with visual feedback and progress tracking
 - **File Management**: Auto-clear screenshots folder before/after generation
 - **Episode Support**: Dedicated options for single episodes vs season packs
 - **Launcher**: START_HERE.bat with complete menu system
@@ -138,6 +150,7 @@ python comparev2.py --version    # Show version information
 - **Input**: Pretty much any video format (MP4, MKV, AVI, etc.)
 - **Output**: High-quality PNG screenshots  
 - **Platforms**: Windows 10/11 (sorry Linux users, PRs welcome 😅)
+- **🆕 Drag & Drop**: Native Windows drag and drop support via tkinterdnd2
 
 ## 🐛 When Things Go Wrong
 
@@ -342,6 +355,13 @@ python -c "import PyInstaller; print('Build tools ready')"
 ## 🆕 Recent Updates
 
 ### Version 2.1 Features  
+- ✅ **🆕 Drag & Drop Support** - Simply drag video files from Windows Explorer into the GUI
+- ✅ **Persistent Drop Zone** - Drag area remains visible for adding multiple videos easily
+- ✅ **Smart File Validation** - Automatic detection of valid video formats with helpful error messages
+- ✅ **Auto Configuration** - Configuration dialog opens automatically for each dropped video
+- ✅ **Multiple File Handling** - Drop several videos at once with individual configuration
+- ✅ **Visual Feedback** - Dynamic drop zone appearance with clear instructions and status
+- ✅ **Robust File Parsing** - Handles various path formats and edge cases from different applications
 - ✅ **Episode Support for slow.pics uploads** - Choose between single episode and season pack
 - ✅ **Smart Collection Naming** - Automatic "ShowName S01E01 source vs encode" format
 - ✅ **File Management Options** - Auto-clear screenshots before generation or after upload

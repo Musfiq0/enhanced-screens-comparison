@@ -17,6 +17,7 @@ tqdm>=4.66.0
 # GUI and executable creation (for GUI mode and building)
 pyinstaller>=6.0.0
 auto-py-to-exe>=2.46.0
+tkinterdnd2>=0.3.0
 
 # Optional VapourSynth (requires system installation)
 # Uncomment the lines below if you have VapourSynth installed:

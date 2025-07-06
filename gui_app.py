@@ -13,6 +13,22 @@ import threading
 import os
 import webbrowser
 
+# Try to import drag and drop support
+try:
+    from tkinterdnd2 import DND_FILES, TkinterDnD  # type: ignore[import-untyped]
+    DND_AVAILABLE = True
+except ImportError:
+    DND_AVAILABLE = False
+    print("Warning: tkinterdnd2 not available. Drag and drop functionality will be disabled.")
+    # Create dummy classes to avoid NameError
+    class TkinterDnD:
+        @staticmethod
+        def Tk():
+            import tkinter
+            return tkinter.Tk()
+    
+    DND_FILES = None
+
 # Import the core comparison functionality
 try:
     from comparev2 import (
@@ -53,6 +69,9 @@ class ScreenshotComparisonGUI:
         # Stop event for screenshot generation
         self.stop_event = threading.Event()
         self.generation_active = False
+        
+        # Drag and drop state
+        self.drag_active = False
         
         # Check for comparison core
         if not COMPARISON_CORE_AVAILABLE:
@@ -114,6 +133,19 @@ class ScreenshotComparisonGUI:
         video_frame = ttk.LabelFrame(self.main_frame, text="Video Sources", padding=10)
         video_frame.pack(fill='both', expand=True, pady=(0, 10))
         
+        # Drag and drop instructions
+        self.drop_label = tk.Label(video_frame, 
+                                   text="📁 Drag and drop video files here to add them\n" +
+                                        "Supported formats: MP4, MKV, AVI, MOV, WMV, FLV, WEBM, M4V",
+                                   font=('Arial', 10, 'italic'),
+                                   fg='#666666',
+                                   bg='#f0f0f0',
+                                   relief='ridge',
+                                   borderwidth=2,
+                                   justify='center',
+                                   pady=10)
+        self.drop_label.pack(fill='x', pady=(0, 10))
+        
         # Video list with scrollbar
         list_frame = ttk.Frame(video_frame)
         list_frame.pack(fill='both', expand=True)
@@ -137,6 +169,9 @@ class ScreenshotComparisonGUI:
         
         list_frame.grid_rowconfigure(0, weight=1)
         list_frame.grid_columnconfigure(0, weight=1)
+        
+        # Configure drag and drop for the video list area
+        self.setup_drag_and_drop()
         
         # Video control buttons
         button_frame = ttk.Frame(video_frame)
@@ -576,6 +611,9 @@ class ScreenshotComparisonGUI:
                 video_type,
                 resolution
             ))
+        
+        # Update drop label visibility
+        self.update_drop_label_visibility()
     
     def start_generation(self):
         """Start screenshot generation"""
@@ -1196,6 +1234,210 @@ class ScreenshotComparisonGUI:
                 print(f"Error clearing screenshots folder: {e}")
                 return False
         return True  # Folder doesn't exist, consider it "cleared"
+    
+    def setup_drag_and_drop(self):
+        """Set up drag and drop functionality for video files"""
+        if not DND_AVAILABLE:
+            # Update label to indicate drag and drop is not available
+            self.drop_label.config(
+                text="📁 Click 'Add Video' button to add video files\n" +
+                     "Supported formats: MP4, MKV, AVI, MOV, WMV, FLV, WEBM, M4V\n" +
+                     "(Drag and drop not available - install tkinterdnd2 for this feature)",
+                fg='#999999'
+            )
+            return
+            
+        try:
+            # Enable drag and drop on multiple widgets
+            self.video_tree.drop_target_register(DND_FILES)
+            self.drop_label.drop_target_register(DND_FILES)
+            
+            # Bind drop events
+            self.video_tree.dnd_bind('<<Drop>>', self.on_video_drop)
+            self.drop_label.dnd_bind('<<Drop>>', self.on_video_drop)
+            
+            # Bind drag enter/leave events for visual feedback
+            self.video_tree.dnd_bind('<<DragEnter>>', self.on_drag_enter)
+            self.video_tree.dnd_bind('<<DragLeave>>', self.on_drag_leave)
+            self.drop_label.dnd_bind('<<DragEnter>>', self.on_drag_enter)
+            self.drop_label.dnd_bind('<<DragLeave>>', self.on_drag_leave)
+            
+        except Exception as e:
+            print(f"Warning: Could not set up drag and drop: {e}")
+            # Update label to indicate drag and drop failed
+            self.drop_label.config(
+                text="📁 Click 'Add Video' button to add video files\n" +
+                     "Supported formats: MP4, MKV, AVI, MOV, WMV, FLV, WEBM, M4V\n" +
+                     "(Drag and drop initialization failed)",
+                fg='#999999'
+            )
+    
+    def on_drag_enter(self, event):
+        """Handle drag enter event for visual feedback"""
+        if not DND_AVAILABLE:
+            return
+            
+        if not self.drag_active:
+            self.drag_active = True
+            # Change visual appearance to indicate drop zone
+            self.drop_label.config(
+                text="🎬 Drop video files here!\n" +
+                     "Supported formats: MP4, MKV, AVI, MOV, WMV, FLV, WEBM, M4V",
+                bg='#e6f3ff',
+                fg='#0066cc'
+            )
+    
+    def on_drag_leave(self, event):
+        """Handle drag leave event to restore normal appearance"""
+        if not DND_AVAILABLE:
+            return
+            
+        if self.drag_active:
+            self.drag_active = False
+            # Restore normal appearance
+            self.drop_label.config(
+                text="📁 Drag and drop video files here to add them\n" +
+                     "Supported formats: MP4, MKV, AVI, MOV, WMV, FLV, WEBM, M4V",
+                bg='#f0f0f0',
+                fg='#666666'
+            )
+    
+    def on_video_drop(self, event):
+        """Handle video file drop event"""
+        if not DND_AVAILABLE:
+            return
+            
+        try:
+            # Restore normal appearance
+            self.on_drag_leave(event)
+            
+            # Get dropped files - handle different formats
+            raw_data = event.data
+            
+            # Parse file paths - tkinterdnd2 formats paths differently on Windows
+            files = []
+            
+            if raw_data.startswith('{') and raw_data.endswith('}'):
+                # Handle braced format: {C:/path/file1.mp4} {C:/path/file2.mp4}
+                import re
+                files = re.findall(r'\{([^}]+)\}', raw_data)
+            elif ' ' in raw_data and not raw_data.startswith('"'):
+                # Handle space-separated format for multiple files
+                # Try to split smartly by looking for drive letters or path separators
+                import re
+                # Look for patterns like "C:\" or "/" to identify separate file paths
+                potential_files = re.split(r'(?=[A-Z]:\\)', raw_data)
+                files = [f.strip() for f in potential_files if f.strip()]
+            else:
+                # Handle single file or quoted paths
+                files = [raw_data.strip('"\'')]
+            
+            # Fallback: if we still don't have files, try simple split
+            if not files:
+                files = raw_data.split()
+            
+            # Filter video files
+            video_extensions = {'.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v'}
+            video_files = []
+            
+            for file_path in files:
+                if not file_path:
+                    continue
+                    
+                # Remove quotes if present and normalize path
+                file_path = file_path.strip('"\'').strip()
+                
+                # Handle different path formats
+                if file_path.startswith('file:///'):
+                    # Handle file:/// URLs
+                    from urllib.parse import unquote
+                    file_path = unquote(file_path[8:])  # Remove 'file:///'
+                elif file_path.startswith('file://'):
+                    # Handle file:// URLs
+                    from urllib.parse import unquote
+                    file_path = unquote(file_path[7:])  # Remove 'file://'
+                
+                # Convert forward slashes to backslashes for Windows
+                file_path = file_path.replace('/', '\\')
+                
+                # Check if file exists and has video extension
+                if os.path.exists(file_path):
+                    file_ext = os.path.splitext(file_path)[1].lower()
+                    if file_ext in video_extensions:
+                        video_files.append(file_path)
+                else:
+                    # Try alternative path formats
+                    alt_paths = [
+                        file_path.replace('\\', '/'),  # Try forward slashes
+                        os.path.abspath(file_path),    # Try absolute path
+                    ]
+                    for alt_path in alt_paths:
+                        if os.path.exists(alt_path):
+                            file_ext = os.path.splitext(alt_path)[1].lower()
+                            if file_ext in video_extensions:
+                                video_files.append(alt_path)
+                                break
+            
+            if not video_files:
+                messagebox.showwarning("Invalid Files", 
+                    f"No valid video files found. Supported formats:\n" +
+                    f"MP4, MKV, AVI, MOV, WMV, FLV, WEBM, M4V\n\n" +
+                    f"Please ensure the files have valid video extensions.")
+                return
+            
+            # Process each video file
+            for file_path in video_files:
+                # Open configuration dialog for each dropped video
+                self.open_video_dialog(file_path)
+                
+            # Show success message if multiple files were processed
+            if len(video_files) > 1:
+                messagebox.showinfo("Success", 
+                    f"Added {len(video_files)} video files successfully!")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to process dropped files: {str(e)}")
+    
+    def update_drop_label_visibility(self):
+        """Update the visibility of the drop label based on video list content"""
+        # Always show the drop label to allow adding more videos
+        self.drop_label.pack(fill='x', pady=(0, 10), before=self.video_tree.master)
+        
+        # Update the label text based on DND availability and current video count
+        if DND_AVAILABLE:
+            if self.videos:
+                # When videos are present, show "add more" message
+                self.drop_label.config(
+                    text=f"📁 Drag and drop more video files here ({len(self.videos)} video{'s' if len(self.videos) != 1 else ''} added)\n" +
+                         "Supported formats: MP4, MKV, AVI, MOV, WMV, FLV, WEBM, M4V",
+                    fg='#555555',
+                    bg='#f8f8f8'
+                )
+            else:
+                # When no videos, show initial message
+                self.drop_label.config(
+                    text="📁 Drag and drop video files here to add them\n" +
+                         "Supported formats: MP4, MKV, AVI, MOV, WMV, FLV, WEBM, M4V",
+                    fg='#666666',
+                    bg='#f0f0f0'
+                )
+        else:
+            if self.videos:
+                # When videos are present and DND not available
+                self.drop_label.config(
+                    text=f"📁 Click 'Add Video' button to add more videos ({len(self.videos)} video{'s' if len(self.videos) != 1 else ''} added)\n" +
+                         "Supported formats: MP4, MKV, AVI, MOV, WMV, FLV, WEBM, M4V\n" +
+                         "(Drag and drop not available - install tkinterdnd2 for this feature)",
+                    fg='#999999'
+                )
+            else:
+                # When no videos and DND not available
+                self.drop_label.config(
+                    text="📁 Click 'Add Video' button to add video files\n" +
+                         "Supported formats: MP4, MKV, AVI, MOV, WMV, FLV, WEBM, M4V\n" +
+                         "(Drag and drop not available - install tkinterdnd2 for this feature)",
+                    fg='#999999'
+                )
     
 
 class VideoConfigDialog:
@@ -2034,9 +2276,20 @@ class VideoConfigDialog:
         self.dialog.destroy()
 
 
+
+    
+
 def main():
     """Main application entry point"""
-    root = tk.Tk()
+    if DND_AVAILABLE:
+        try:
+            root = TkinterDnD.Tk()
+        except Exception as e:
+            print(f"Warning: Could not initialize drag and drop support: {e}")
+            root = tk.Tk()
+    else:
+        root = tk.Tk()
+    
     app = ScreenshotComparisonGUI(root)
     root.mainloop()
 
