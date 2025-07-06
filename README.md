@@ -20,6 +20,8 @@
 - 🎭 **GUI for normies, Console for nerds** 
 - ⚡ **Actually fast** (when you have good hardware)
 
+📚 **Want the full nerdy details?** Check out our [comprehensive wiki](https://github.com/Musfiq0/enhanced-screens-comparison/wiki) for all the juicy technical stuff, advanced configs, and step-by-step guides that'll make you a comparison wizard! 🧙‍♂️✨
+
 ## 🚀 Getting Started (Choose Your Adventure)
 
 ### 🎮 I just want it to work (Recommended)
@@ -73,14 +75,6 @@ python build_exe.py
 5. **Hit Generate** → Watch the magic happen ✨
 6. **Get results** → Screenshots saved locally + auto-uploaded to slow.pics with proper naming
 
-#### 🆕 New Drag & Drop Features
-- **Persistent Drop Zone**: Drag area stays visible for adding multiple videos
-- **Smart File Detection**: Automatically validates video formats (MP4, MKV, AVI, MOV, WMV, FLV, WEBM, M4V)
-- **Auto Configuration**: Configuration dialog opens automatically for each dropped video
-- **Multiple File Support**: Drop several videos at once - each gets its own configuration
-- **Visual Feedback**: Drop zone changes appearance during drag operations
-- **Progress Tracking**: Shows current video count and encourages adding more
-
 ### ⌨️ Console Mode (For the command line warriors)
 
 ```bash
@@ -110,35 +104,6 @@ python comparev2.py --version    # Show version information
 [✅] Successfully generated: 20/20
 ```
 
-## 🎨 Cool Features That Actually Work
-
-### 🔧 Smart Video Processing
-- **Crop Presets Galore**: Remove letterbox, pillarbox, streaming logos, dirty lines
-- **Resolution Magic**: Handles everything from potato quality to 4K without breaking
-- **Aspect Ratio Respect**: Won't stretch your waifus (that would be a crime)
-- **Trim & Pad**: Cut out intros/outros or sync videos that are slightly off
-
-### 🎮 User Experience That Doesn't Suck  
-- **🆕 Drag & Drop Interface**: Drag videos directly from Windows Explorer - no more clicking through folders
-- **Persistent Drop Zone**: Add multiple videos easily with visual feedback and progress tracking
-- **File Management**: Auto-clear screenshots folder before/after generation
-- **Episode Support**: Dedicated options for single episodes vs season packs
-- **Launcher**: START_HERE.bat with complete menu system
-- **Dual Interface**: Choose GUI for ease or CLI for power
-- **One-Click Stop**: Panic button that actually works
-- **Progress Bars**: So you know it's not frozen
-- **Scrollable Everything**: Works on your tiny laptop screen
-- **No Installation Hell**: Just download and run
-- **Smart Dependencies**: Automatic library checking and installation
-
-### 🌐 Upload Integration
-- **Auto slow.pics**: Generates comparison page and opens in browser
-- **Episode Support**: Choose between single episode or season pack uploads
-- **Smart Collection Names**: Automatic naming like "ShowName S01E01 source vs encode"
-- **File Management**: Auto-clear screenshots before generation or after upload
-- **Smart File Matching**: Figures out which screenshots belong together
-- **Retry Logic**: Because the internet is unreliable
-
 ## 🛠️ Technical Stuff (For the Curious)
 
 ### Processing Backends
@@ -150,73 +115,7 @@ python comparev2.py --version    # Show version information
 - **Input**: Pretty much any video format (MP4, MKV, AVI, etc.)
 - **Output**: High-quality PNG screenshots  
 - **Platforms**: Windows 10/11 (sorry Linux users, PRs welcome 😅)
-- **🆕 Drag & Drop**: Native Windows drag and drop support via tkinterdnd2
 
-## 🐛 When Things Go Wrong
-
-### "It's not working!"
-1. **Use START_HERE.bat** for the best experience (handles dependencies automatically)
-2. Check if you have videos in a supported format
-3. Make sure you have enough disk space
-4. Try the CLI version (option 2) if GUI has issues
-5. Try turning it off and on again (seriously)
-
-### "VapourSynth errors everywhere!"
-- Don't panic, it'll fall back to OpenCV
-- Install VapourSynth properly if you want the best quality
-- Check `python comparev2.py --demo` to see what's detected
-
-### "Upload failed!"
-- Check your internet connection  
-- Use the "Upload Existing" button to retry
-- slow.pics might be having a bad day
-
-### "My screenshots look terrible!"
-- Install VapourSynth for better quality
-- Check your source videos aren't corrupted
-## 🎉 Recent Cool Stuff Added
-
-- ✅ **Episode Support for slow.pics** - Single episode vs season pack upload options
-- ✅ **File Management Options** - Auto-clear screenshots before/after generation
-- ✅ **Dynamic Processing Display** - Shows actual processing steps in console
-- ✅ **Enhanced START_HERE.bat launcher** with complete menu system
-- ✅ **CLI option integration** - Easy access to console version via menu
-- ✅ **Complete crop preset overhaul** (now with ALL the formats)
-- ✅ **Resize-first processing** (crop values work consistently)  
-- ✅ **Better error handling** (fewer random crashes)
-- ✅ **Improved UI** (less ugly, more functional)
-- ✅ **Fixed aspect ratios** (no more stretched anime girls)
-
-### 🚀 New Launcher Features
-- **Complete Menu System**: 10 organized options covering all functionality
-- **CLI Integration**: Direct access to console version from main menu
-- **Smart Dependencies**: Automatic checking and installation of required packages
-- **Cool Layout**: Clean ASCII art and logical option grouping
-- **Build Integration**: Complete build system accessible from menu
-- **Maintenance Tools**: Built-in cleanup and dependency management
-
-## 📁 Project Structure
-
-```
-📦 Enhanced-Screenshot-Comparison-Tool/
-├── 🎬 comparev2.py              # Enhanced CLI with colored output and robust processing
-├── 🖼️ gui_app.py                # GUI application with modern interface
-├── 📋 requirements.txt          # Python dependencies
-├── 🔨 build_exe.py              # Executable builder script
-├── 📄 screenshot_comparison.spec # PyInstaller configuration
-├── 📝 version_info.txt          # Version metadata for builds
-├── 🎯 icon.ico                  # Application icon
-├── 🚀 START_HERE.bat            # Main launcher with complete menu system
-├── 🏃 run_gui.bat               # Direct GUI launcher
-├── ⚒️ build.bat                 # Build script for executable
-├── 📖 README.md                 # This documentation
-├── 📜 LICENSE                   # License information
-├── 📊 PROJECT_STRUCTURE.md      # Detailed project documentation
-├── 📸 Screenshots/              # Generated screenshots folder
-│   └── [Video_Name]/            # Organized by video source
-├── 🗂️ __pycache__/              # Python cache files
-└── 📦 dist/                     # Built executable (after building)
-```
 
 ## 🤝 Contributing
 
@@ -226,87 +125,6 @@ Found a bug? Want a feature? Have a better idea?
 3. Send a PR
 4. ??? 
 5. Profit!
-
-## ⚖️ License
-
-Do whatever you want with this code, just don't blame me if it breaks something. Also, make sure you have the rights to the videos you're processing (don't be that person).
-
----
-
-**Made with ❤️ and lots of ☕ by someone who got tired of manual screenshot comparisons**
-
-*P.S. - If this tool saved you time, consider starring the repo. It makes me feel good about my life choices.* ⭐
-
-### Standard Build
-```bash
-# Install all dependencies
-pip install -r requirements.txt
-
-# Build executable
-python build_exe.py
-
-# Or use batch file
-build.bat
-```
-
-### Advanced Build Options
-```bash
-# Build with custom options
-pyinstaller screenshot_comparison.spec
-
-# Check build requirements
-python -c "import PyInstaller; print('PyInstaller ready')"
-```
-
-## 📁 File Structure
-
-```
-Enhanced-Screenshot-Comparison-Tool/
-├── 📋 Core Application
-│   ├── comparev2.py              # Enhanced CLI comparison engine with multi-backend support
-│   ├── gui_app.py                # GUI application with modern interface
-│   └── icon.ico                  # Application icon
-├── 🔨 Build System  
-│   ├── build_exe.py              # Executable builder with PyInstaller
-│   ├── screenshot_comparison.spec # PyInstaller configuration file
-│   ├── version_info.txt          # Version metadata for Windows builds
-│   └── build.bat                 # Batch script for building executable
-├── 📦 Dependencies & Config
-│   ├── requirements.txt          # All Python dependencies
-│   ├── LICENSE                   # Project license
-│   └── PROJECT_STRUCTURE.md      # Detailed project documentation
-├── 🚀 Quick Launch
-│   ├── START_HERE.bat            # Main launcher with complete menu system
-│   └── run_gui.bat               # Direct GUI launcher with dependency checking
-├── 📸 Output & Cache
-│   ├── Screenshots/              # Generated screenshots organized by source
-│   ├── __pycache__/              # Python bytecode cache
-│   └── dist/                     # Built executable output (after building)
-└── 📖 Documentation
-    └── README.md                 # Complete user guide and documentation
-```
-
-## 🎯 Key Features Explained
-
-### Smart Crop Presets
-The tool includes professionally-designed crop presets for every common scenario:
-
-- **Cinema Formats**: Perfect letterbox removal for 2.40:1, 2.35:1, 1.85:1 content
-- **Streaming Services**: Logo removal presets for major platforms
-- **Technical Corrections**: Dirty line removal, overscan correction
-- **Format Conversion**: 4:3 to 16:9 pillarbox handling
-
-### Intelligent Processing
-- **Resolution-Aware**: Crop values automatically work across all source resolutions
-- **Quality Preservation**: Optimal processing order prevents quality loss
-- **Aspect Ratio Maintenance**: Smart resizing maintains proper proportions
-- **Format Detection**: Automatic handling of various video formats and codecs
-
-### Workflow
-- **Batch Processing**: Handle multiple comparisons efficiently
-- **Instant Control**: Stop processing at any time without data loss
-- **Progress Monitoring**: Real-time feedback with detailed status information
-- **Result Management**: Organized output with direct folder access
 
 ## 🐛 Troubleshooting
 
@@ -368,29 +186,14 @@ python -c "import PyInstaller; print('Build tools ready')"
 - ✅ **Dynamic Processing Display** - Console shows actual processing steps instead of static text
 - ✅ **Custom Frames Fallback** - Uses default frames (100,500,1000) instead of switching to interval
 
-### Version 2.0 Features
-- ✅ **Enhanced launcher system** with interactive menu and CLI integration
-- ✅ **Complete crop preset system** with all common video formats
-- ✅ **Resize-first processing** for consistent crop behavior  
-- ✅ **Enhanced resolution support** from SD to 4K with proper scaling
-- ✅ **Smart aspect ratio handling** prevents image distortion
-- ✅ **Improved error handling** with comprehensive validation
-- ✅ **Better UI responsiveness** with scrollable dialogs
-- ✅ **Fixed Pillow warnings** for modern compatibility
+## ⚖️ License
 
-### Stability Improvements
-- ✅ **Thread-safe stop function** with instant response
-- ✅ **Robust file handling** with proper cleanup
-- ✅ **Enhanced upload reliability** with better error recovery
-- ✅ **Console compatibility** with all Windows encodings
-- ✅ **Memory optimization** for large video processing
-
-## 📝 License
-
-This project is provided as-is for educational and personal use. Please ensure you have the right to process and compare the video files you use with this tool.
+Do whatever you want with this code, just don't blame me if it breaks something. Also, make sure you have the rights to the videos you're processing (don't be that person).
 
 ---
 
-**Enhanced Screenshot Comparison Tool** - Hassle-free video comparison.
+**Made with ❤️ and lots of ☕ by someone who got tired of manual screenshot comparisons**
 
-For questions, issues, or contributions, please refer to the project repository.
+*P.S. - If this tool saved you time, consider starring the repo. It makes me feel good about my life choices.* ⭐
+
+---
