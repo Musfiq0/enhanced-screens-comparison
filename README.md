@@ -34,8 +34,8 @@ START_HERE.bat
 
 ### 🤓 I like Python and want to tinker
 ```bash
-git clone https://github.com/your-repo/Enhanced-Screenshot-Comparison-Tool
-cd Enhanced-Screenshot-Comparison-Tool
+git clone https://github.com/Musfiq0/enhanced-screens-comparison.git
+cd enhanced-screens-comparison
 pip install -r requirements.txt
 
 # GUI Mode
