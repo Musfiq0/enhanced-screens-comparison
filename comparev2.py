@@ -741,6 +741,47 @@ def get_multiple_sources_config():
                 pad_start, pad_end = 0, 0
                 print("  Invalid input, using default values (0, 0)")
         
+        # Get cropping options for this source
+        print(f"\n--- Cropping Options for {source_name} ---")
+        print("Choose cropping method:")
+        print("1. No cropping")
+        print("2. Auto-detect crop (recommended)")
+        print("3. Manual crop values")
+        
+        while True:
+            try:
+                crop_choice = int(input("Enter choice (1-3): "))
+                if crop_choice in [1, 2, 3]:
+                    break
+                else:
+                    print("Please enter 1, 2, or 3.")
+            except ValueError:
+                print("Please enter a valid number.")
+        
+        video_crop = None
+        if crop_choice == 2:
+            video_crop = "auto"
+            print(f"Auto-detect crop will be applied to {source_name}")
+        elif crop_choice == 3:
+            print("Enter crop values (pixels to remove from each edge):")
+            try:
+                crop_left = int(input("  Left: ") or "0")
+                crop_right = int(input("  Right: ") or "0") 
+                crop_top = int(input("  Top: ") or "0")
+                crop_bottom = int(input("  Bottom: ") or "0")
+                if crop_left or crop_right or crop_top or crop_bottom:
+                    video_crop = {
+                        'left': crop_left,
+                        'right': crop_right,
+                        'top': crop_top,
+                        'bottom': crop_bottom
+                    }
+                    print(f"Manual crop will be applied: left={crop_left}, right={crop_right}, top={crop_top}, bottom={crop_bottom}")
+                else:
+                    print("No cropping values entered, proceeding without crop")
+            except ValueError:
+                print("Invalid crop values, proceeding without crop")
+        
         videos.append({
             'path': video_path,
             'name': source_name,
@@ -748,7 +789,7 @@ def get_multiple_sources_config():
             'trim_end': trim_end,
             'pad_start': pad_start,
             'pad_end': pad_end,
-            'crop': None,  # No cropping for multiple sources
+            'crop': video_crop,  # Now includes cropping for multiple sources
             'resize': None  # Will be set in common resize config
         })
     
@@ -907,12 +948,12 @@ def get_source_vs_encode_config():
             'pad_end': additional_pad_end
         })
     
-    print(f"\n[WARN] IMPORTANT: Encode videos will NOT be resized to prevent unwanted upscaling")
-    print(f"   Only source videos can be resized. Resize options will only be shown for sources.")
-    
     # Collect all source videos for resize configuration
     all_source_videos = [{'path': source_path, 'name': source_name}]
     all_source_videos.extend(additional_sources)
+    
+    print(f"\n[WARN] IMPORTANT: Encode videos will NOT be resized to prevent unwanted upscaling")
+    print(f"   Only source videos can be resized. Resize options will be shown first.")
     
     # Get resize configuration for source videos only (before cropping)
     print(f"\n--- Resize Options for Source Videos ---")
@@ -922,6 +963,7 @@ def get_source_vs_encode_config():
     # Get cropping options for primary source
     print(f"\n--- Cropping Options for {source_name} ---")
     print("Cropping helps when source has black bars or different aspect ratio")
+    print("NOTE: Cropping will be applied to the final resolution (after any resizing)")
     print("Choose cropping method:")
     print("1. No cropping")
     print("2. Auto-detect crop (recommended)")
@@ -1035,8 +1077,11 @@ def get_source_vs_encode_config():
             encode_pad_start, encode_pad_end = 0, 0
             print("  Invalid input, using default values (0, 0)")
     
-    print(f"\nFor source vs encode comparison, cropping is applied first, then trim/pad processing")
-    print(f"This ensures proper frame-to-frame comparison between source and encode")
+    print(f"\nFor source vs encode comparison, the processing order is:")
+    print(f"  1. Resize (if configured)")
+    print(f"  2. Crop (if configured)")  
+    print(f"  3. Trim/Pad processing")
+    print(f"This ensures cropping values apply to the final resolution for accurate comparison")
     
     # Add primary source video (will be first in comparison: Primary Source vs Encode vs Others)
     videos.append({
