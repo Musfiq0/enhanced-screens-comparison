@@ -252,13 +252,6 @@ python -c "import PyInstaller; print('Build tools ready')"
 - ✅ **Trim and Padding** - Process specific video segments with frame-accurate control
 - ✅ **Processing Order Control** - Customize crop/resize/processing order per video
 
-### Version 2.1 GUI Features  
-- ✅ **🆕 Drag & Drop Support** - Simply drag video files from Windows Explorer into the GUI
-- ✅ **Episode Support for slow.pics uploads** - Choose between single episode and season pack
-- ✅ **Smart Collection Naming** - Automatic "ShowName S01E01 source vs encode" format
-- ✅ **File Management Options** - Auto-clear screenshots before generation or after upload
-- ✅ **Dynamic Processing Display** - Console shows actual processing steps instead of static text
-
 ## ⚖️ License
 
 Do whatever you want with this code, just don't blame me if it breaks something. Also, make sure you have the rights to the videos you're processing (don't be that person).
