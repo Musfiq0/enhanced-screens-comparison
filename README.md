@@ -7,11 +7,11 @@
 [![GUI](https://img.shields.io/badge/Interface-GUI%20%2B%20CLI-orange)](https://github.com) 
 [![Quality](https://img.shields.io/badge/Quality-Actually%20Good-brightgreen)](https://github.com)
 
-> Ever wanted to compare your anime encodes but got tired of opening 47 different video players and taking manual screenshots? This tool does it all for you and even uploads the results to slow.pics automatically! 🚀
+> Ever wanted to compare multiple videos but got tired of writing VapourSynth/AviSynth scripts for each comparison? This tool automates the entire process and even uploads the results to slow.pics automatically! 🚀
 
 ## 🎯 What does this thing do?
 
-**TL;DR**: Drag videos → Get comparison screenshots → Automatic upload → Share with friends → Profit! 📈
+**TL;DR**: Load videos → Get comparison screenshots → Automatic upload → Share with friends! 📈
 
 - 🖼️ **Automatic screenshot generation** from multiple videos
 - 🎨 **Smart cropping** (bye bye black bars!)  
@@ -57,15 +57,19 @@ python build_exe.py
 ### 🖱️ GUI Mode (For humans)
 
 1. **Launch the app** (wow, such difficulty)
-2. **Pick your poison**:
+2. **Configure settings** in the Settings tab:
+   - **File Management**: Auto-clear screenshots before/after generation
+   - **Frame Selection**: Choose interval or custom frames
+   - **Upload Options**: Enable slow.pics upload with episode support
+3. **Pick your poison**:
    - `Multiple Sources` → Compare different releases of the same anime
    - `Source vs Encode` → Compare your encode against the original
-3. **Add videos** → Click "Add Video" and configure them:
+4. **Add videos** → Click "Add Video" and configure them:
    - Give them nice names like "Netflix" or "My Trash Encode"
    - Pick from **tons of crop presets** (letterbox, streaming logos, dirty lines, etc.)
    - Choose target resolution (480p to 4K because why not)
-4. **Hit Generate** → Watch the magic happen ✨
-5. **Get results** → Screenshots saved locally + auto-uploaded to slow.pics
+5. **Hit Generate** → Watch the magic happen ✨
+6. **Get results** → Screenshots saved locally + auto-uploaded to slow.pics with proper naming
 
 ### ⌨️ Console Mode (For the command line warriors)
 
@@ -105,6 +109,8 @@ python comparev2.py --version    # Show version information
 - **Trim & Pad**: Cut out intros/outros or sync videos that are slightly off
 
 ### 🎮 User Experience That Doesn't Suck  
+- **File Management**: Auto-clear screenshots folder before/after generation
+- **Episode Support**: Dedicated options for single episodes vs season packs
 - **Launcher**: START_HERE.bat with complete menu system
 - **Dual Interface**: Choose GUI for ease or CLI for power
 - **One-Click Stop**: Panic button that actually works
@@ -115,6 +121,9 @@ python comparev2.py --version    # Show version information
 
 ### 🌐 Upload Integration
 - **Auto slow.pics**: Generates comparison page and opens in browser
+- **Episode Support**: Choose between single episode or season pack uploads
+- **Smart Collection Names**: Automatic naming like "ShowName S01E01 source vs encode"
+- **File Management**: Auto-clear screenshots before generation or after upload
 - **Smart File Matching**: Figures out which screenshots belong together
 - **Retry Logic**: Because the internet is unreliable
 
@@ -154,6 +163,9 @@ python comparev2.py --version    # Show version information
 - Check your source videos aren't corrupted
 ## 🎉 Recent Cool Stuff Added
 
+- ✅ **Episode Support for slow.pics** - Single episode vs season pack upload options
+- ✅ **File Management Options** - Auto-clear screenshots before/after generation
+- ✅ **Dynamic Processing Display** - Shows actual processing steps in console
 - ✅ **Enhanced START_HERE.bat launcher** with complete menu system
 - ✅ **CLI option integration** - Easy access to console version via menu
 - ✅ **Complete crop preset overhaul** (now with ALL the formats)
@@ -328,6 +340,13 @@ python -c "import PyInstaller; print('Build tools ready')"
 - **For best quality**: Install VapourSynth system-wide
 
 ## 🆕 Recent Updates
+
+### Version 2.1 Features  
+- ✅ **Episode Support for slow.pics uploads** - Choose between single episode and season pack
+- ✅ **Smart Collection Naming** - Automatic "ShowName S01E01 source vs encode" format
+- ✅ **File Management Options** - Auto-clear screenshots before generation or after upload
+- ✅ **Dynamic Processing Display** - Console shows actual processing steps instead of static text
+- ✅ **Custom Frames Fallback** - Uses default frames (100,500,1000) instead of switching to interval
 
 ### Version 2.0 Features
 - ✅ **Enhanced launcher system** with interactive menu and CLI integration

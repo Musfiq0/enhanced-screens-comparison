@@ -534,6 +534,7 @@ def get_upload_only_config():
             colored_print("[ERROR] Please enter a valid number.", Colors.RED)
     
     season_number = ""
+    episode_number = ""
     if series_choice == 1:
         season_input = input(f"{Colors.CYAN}Enter season number (e.g., 1, 2, 3): {Colors.END}").strip()
         if season_input:
@@ -541,6 +542,35 @@ def get_upload_only_config():
                 season_num = int(season_input)
                 season_number = f"S{season_num:02d}"
                 colored_print(f"[OK] Season {season_num} configured!", Colors.GREEN, bold=True)
+                
+                # Ask for episode type
+                colored_print("\nIs this comparison for:", Colors.YELLOW, bold=True)
+                colored_print("1. [SEASON] Full season/season pack", Colors.GREEN)
+                colored_print("2. [EPISODE] Single episode", Colors.BLUE)
+                
+                while True:
+                    try:
+                        episode_choice = int(input(f"\n{Colors.CYAN}Enter choice (1 or 2): {Colors.END}"))
+                        if episode_choice in [1, 2]:
+                            if episode_choice == 1:
+                                colored_print("[OK] Season pack selected!", Colors.GREEN, bold=True)
+                            else:
+                                colored_print("[OK] Single episode selected!", Colors.GREEN, bold=True)
+                                episode_input = input(f"{Colors.CYAN}Enter episode number (e.g., 1, 2, 15): {Colors.END}").strip()
+                                if episode_input:
+                                    try:
+                                        episode_num = int(episode_input)
+                                        episode_number = f"E{episode_num:02d}"
+                                        colored_print(f"[OK] Episode {episode_num} configured!", Colors.GREEN, bold=True)
+                                    except ValueError:
+                                        colored_print("[WARN] Invalid episode number, continuing without episode.", Colors.YELLOW)
+                                        episode_number = ""
+                            break
+                        else:
+                            colored_print("[ERROR] Please enter 1 or 2.", Colors.RED)
+                    except ValueError:
+                        colored_print("[ERROR] Please enter a valid number.", Colors.RED)
+                        
             except ValueError:
                 colored_print("[WARN] Invalid season number, continuing without season.", Colors.YELLOW)
                 season_number = ""
@@ -559,6 +589,7 @@ def get_upload_only_config():
         'processed_videos': processed_videos,
         'show_name': show_name,
         'season_number': season_number,
+        'episode_number': episode_number,
         'upload_to_slowpics': True
     }
 
@@ -1101,11 +1132,13 @@ def get_screenshot_and_upload_config():
         try:
             custom_frames = [int(f.strip()) for f in custom_frames_input.split(',') if f.strip()]
             if not custom_frames:
-                raise ValueError("No valid frames provided")
+                # Use default frames instead of switching to interval
+                custom_frames = [100, 500, 1000]
+                print("No frames provided, using default custom frames: 100, 500, 1000")
         except ValueError:
-            print("Invalid frame numbers, using default interval of 150")
-            frame_interval = 150
-            custom_frames = None
+            # Use default frames instead of switching to interval
+            custom_frames = [100, 500, 1000]
+            print("Invalid frame numbers, using default custom frames: 100, 500, 1000")
     
     # Get slow.pics upload options
     print("\n--- slow.pics Upload Options ---")
@@ -1126,6 +1159,7 @@ def get_screenshot_and_upload_config():
     upload_to_slowpics = upload_choice == 1
     show_name = ""
     season_number = ""
+    episode_number = ""
     
     if upload_to_slowpics:
         show_name = input("Enter show/movie name: ").strip()
@@ -1154,6 +1188,31 @@ def get_screenshot_and_upload_config():
                     try:
                         season_num = int(season_input)
                         season_number = f"S{season_num:02d}"
+                        
+                        # Ask for episode type
+                        print("\nIs this comparison for:")
+                        print("1. Full season/season pack")
+                        print("2. Single episode")
+                        
+                        while True:
+                            try:
+                                episode_choice = int(input("Enter choice (1 or 2): "))
+                                if episode_choice in [1, 2]:
+                                    if episode_choice == 2:
+                                        episode_input = input("Enter episode number (e.g., 1, 2, 15): ").strip()
+                                        if episode_input:
+                                            try:
+                                                episode_num = int(episode_input)
+                                                episode_number = f"E{episode_num:02d}"
+                                            except ValueError:
+                                                print("Invalid episode number, continuing without episode.")
+                                                episode_number = ""
+                                    break
+                                else:
+                                    print("Please enter 1 or 2.")
+                            except ValueError:
+                                print("Please enter a valid number.")
+                                
                     except ValueError:
                         print("Invalid season number, continuing without season.")
                         season_number = ""
@@ -1163,7 +1222,8 @@ def get_screenshot_and_upload_config():
         'custom_frames': custom_frames,
         'upload_to_slowpics': upload_to_slowpics,
         'show_name': show_name,
-        'season_number': season_number
+        'season_number': season_number,
+        'episode_number': episode_number
     }
 
 def get_resize_config(videos):
@@ -1638,11 +1698,16 @@ def upload_to_slowpics(config, frames, processed_videos):
     source_names = [video['name'] for video in processed_videos]
     vs_string = " vs ".join(source_names)
     
-    if config['season_number']:
-        collection_name = f"{config['show_name']} {config['season_number']} {vs_string}"
-    else:
-        collection_name = f"{config['show_name']} {vs_string}"
+    # Build collection name with season and episode info
+    title_parts = [config['show_name']]
+    if config.get('season_number'):
+        season_episode = config['season_number']
+        if config.get('episode_number'):
+            season_episode += config['episode_number']
+        title_parts.append(season_episode)
+    title_parts.append(vs_string)
     
+    collection_name = " ".join(title_parts)
     colored_print(f"[?[NAME] Collection name: {collection_name}", Colors.CYAN, bold=True)
     
     try:
@@ -2137,8 +2202,10 @@ def process_and_generate_screenshots(config):
                 source_names = [v['name'] for v in source_videos]
                 colored_print(f"[🔄] Comparison order: {source_names[0]} vs Encode vs {' vs '.join(source_names[1:])}", Colors.BLUE, bold=True)
             
-            colored_print(f"[📋] Processing order: Sources (resize → crop), Encode (crop only - NO RESIZE)", Colors.MAGENTA)
-            colored_print(f"[WARN] Encode videos are never resized to prevent unwanted upscaling", Colors.YELLOW, bold=True)
+            processing_order = get_processing_order_description(config, processed_videos)
+            colored_print(f"[📋] Processing order: {processing_order}", Colors.MAGENTA)
+            if "resize" in processing_order.lower():
+                colored_print(f"[WARN] Encode videos are never resized to prevent unwanted upscaling", Colors.YELLOW, bold=True)
         
         # Upload to slow.pics if requested
         if config['upload_to_slowpics']:
@@ -2245,6 +2312,46 @@ def generate_screenshots_robust(frames, video_info_clips):
         colored_print(f"  [❌] Errors encountered: {error_count}", Colors.RED)
     
     return success_count > 0
+
+def get_processing_order_description(config, processed_videos):
+    """Generate dynamic processing order description based on actual configuration"""
+    if config.get('comparison_type') != 'source_vs_encode':
+        return ""
+    
+    # Get configuration details
+    resize_config = config.get('resize_config', {})
+    videos = config.get('videos', [])
+    
+    # Check what processing is actually enabled
+    has_source_resize = resize_config.get('resize_method', 'none') != 'none'
+    has_source_crop = any(v.get('crop') for v in videos if v.get('is_source', True))
+    has_encode_crop = any(v.get('crop') for v in videos if not v.get('is_source', True))
+    
+    # Build source processing description
+    source_parts = []
+    if has_source_resize:
+        source_parts.append("resize")
+    if has_source_crop:
+        source_parts.append("crop")
+    
+    # Build encode processing description
+    encode_parts = []
+    if has_encode_crop:
+        encode_parts.append("crop")
+    
+    # Generate description
+    if source_parts and encode_parts:
+        source_desc = " → ".join(source_parts)
+        encode_desc = " → ".join(encode_parts)
+        return f"Sources ({source_desc}), Encode ({encode_desc} only - NO RESIZE)"
+    elif source_parts:
+        source_desc = " → ".join(source_parts)
+        return f"Sources ({source_desc}), Encode (no processing)"
+    elif encode_parts:
+        encode_desc = " → ".join(encode_parts)
+        return f"Sources (no processing), Encode ({encode_desc} only - NO RESIZE)"
+    else:
+        return "Sources, Encode (no processing)"
 
 # =============================================================================
 # COMMAND LINE ARGUMENT PARSING

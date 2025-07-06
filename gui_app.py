@@ -44,7 +44,10 @@ class ScreenshotComparisonGUI:
             'custom_frames': None,
             'upload_to_slowpics': False,
             'show_name': '',
-            'season_number': ''
+            'season_number': '',
+            'episode_number': '',
+            'clear_before_generation': False,
+            'clear_after_upload': False
         }
         
         # Stop event for screenshot generation
@@ -171,6 +174,18 @@ class ScreenshotComparisonGUI:
         
     def setup_settings_tab(self):
         """Set up the settings tab"""
+        # File Management settings
+        file_mgmt_frame = ttk.LabelFrame(self.settings_frame, text="File Management", padding=10)
+        file_mgmt_frame.pack(fill='x', pady=(0, 10))
+        
+        self.clear_before_var = tk.BooleanVar()
+        ttk.Checkbutton(file_mgmt_frame, text="Clear screenshots folder before generating new screenshots", 
+                       variable=self.clear_before_var).pack(anchor='w')
+        
+        self.clear_after_upload_var = tk.BooleanVar()
+        ttk.Checkbutton(file_mgmt_frame, text="Clear screenshots folder after successful upload to slow.pics", 
+                       variable=self.clear_after_upload_var).pack(anchor='w', pady=(5, 0))
+        
         # Frame selection
         frame_frame = ttk.LabelFrame(self.settings_frame, text="Frame Selection", padding=10)
         frame_frame.pack(fill='x', pady=(0, 10))
@@ -240,6 +255,22 @@ class ScreenshotComparisonGUI:
                                          textvariable=self.season_var, width=5)
         self.season_spinbox.pack(side='left', padx=(5, 0))
         self.season_spinbox.configure(state='disabled')
+        
+        # Episode
+        episode_frame = ttk.Frame(self.upload_settings_frame)
+        episode_frame.pack(fill='x', pady=(5, 0))
+        
+        self.is_episode_var = tk.BooleanVar()
+        ttk.Checkbutton(episode_frame, text="Single episode (not season pack)", 
+                       variable=self.is_episode_var,
+                       command=self.on_episode_change).pack(side='left')
+        
+        ttk.Label(episode_frame, text="Episode:").pack(side='left', padx=(20, 0))
+        self.episode_var = tk.IntVar(value=1)
+        self.episode_spinbox = ttk.Spinbox(episode_frame, from_=1, to=999, 
+                                          textvariable=self.episode_var, width=5)
+        self.episode_spinbox.pack(side='left', padx=(5, 0))
+        self.episode_spinbox.configure(state='disabled')
         
         # Initially disable upload settings
         self.toggle_upload_settings(False)
@@ -363,8 +394,29 @@ class ScreenshotComparisonGUI:
         """Handle series checkbox change"""
         if self.upload_var.get() and self.is_series_var.get():
             self.season_spinbox.configure(state='normal')
+            # Episode checkbox is only available if series is checked
+            for widget in self.upload_settings_frame.winfo_children():
+                for child in widget.winfo_children():
+                    if isinstance(child, ttk.Checkbutton) and "Single episode" in str(child.cget('text')):
+                        child.configure(state='normal')
+                        break
         else:
             self.season_spinbox.configure(state='disabled')
+            self.episode_spinbox.configure(state='disabled')
+            self.is_episode_var.set(False)
+            # Disable episode checkbox
+            for widget in self.upload_settings_frame.winfo_children():
+                for child in widget.winfo_children():
+                    if isinstance(child, ttk.Checkbutton) and "Single episode" in str(child.cget('text')):
+                        child.configure(state='disabled')
+                        break
+    
+    def on_episode_change(self):
+        """Handle episode checkbox change"""
+        if self.upload_var.get() and self.is_series_var.get() and self.is_episode_var.get():
+            self.episode_spinbox.configure(state='normal')
+        else:
+            self.episode_spinbox.configure(state='disabled')
     
     def toggle_upload_settings(self, enabled):
         """Enable/disable upload settings"""
@@ -379,6 +431,12 @@ class ScreenshotComparisonGUI:
             self.season_spinbox.configure(state='normal')
         else:
             self.season_spinbox.configure(state='disabled')
+        
+        # Handle episode spinbox - enable only if upload, series, and episode checkboxes are all checked
+        if enabled and self.is_series_var.get() and self.is_episode_var.get():
+            self.episode_spinbox.configure(state='normal')
+        else:
+            self.episode_spinbox.configure(state='disabled')
     
     def add_video(self):
         """Add a video file"""
@@ -395,7 +453,8 @@ class ScreenshotComparisonGUI:
     
     def open_video_dialog(self, file_path, edit_index=None):
         """Open dialog for video configuration"""
-        dialog = VideoConfigDialog(self.root, file_path, self.comparison_var.get(), edit_index)
+        existing_video = self.videos[edit_index] if edit_index is not None else None
+        dialog = VideoConfigDialog(self.root, file_path, self.comparison_var.get(), edit_index, existing_video)
         self.root.wait_window(dialog.dialog)
         
         if dialog.result:
@@ -597,11 +656,18 @@ class ScreenshotComparisonGUI:
         
         self.config['upload_to_slowpics'] = self.upload_var.get()
         self.config['show_name'] = self.show_name_var.get().strip()
+        self.config['clear_before_generation'] = self.clear_before_var.get()
+        self.config['clear_after_upload'] = self.clear_after_upload_var.get()
         
         if self.is_series_var.get():
             self.config['season_number'] = f"S{self.season_var.get():02d}"
+            if self.is_episode_var.get():
+                self.config['episode_number'] = f"E{self.episode_var.get():02d}"
+            else:
+                self.config['episode_number'] = ""
         else:
             self.config['season_number'] = ""
+            self.config['episode_number'] = ""
     
     def _generation_worker(self):
         """Worker thread for screenshot generation"""
@@ -760,6 +826,14 @@ class ScreenshotComparisonGUI:
             # Generate screenshots
             self.root.after(0, lambda: self.status_label.config(text="Generating screenshots..."))
             
+            # Clear screenshots folder before generation if option is enabled
+            if self.config.get('clear_before_generation', False):
+                self.root.after(0, lambda: self.status_label.config(text="Clearing screenshots folder..."))
+                if self.clear_screenshots_folder():
+                    self.root.after(0, lambda: self.status_label.config(text="Screenshots folder cleared, generating screenshots..."))
+                else:
+                    self.root.after(0, lambda: self.status_label.config(text="Warning: Could not clear screenshots folder, continuing..."))
+            
             # Clean up existing screenshots
             screenshots_folder = "Screenshots"
             if not os.path.exists(screenshots_folder):
@@ -878,6 +952,7 @@ class ScreenshotComparisonGUI:
                     comparison_url = upload_to_slowpics({
                         'show_name': self.config['show_name'],
                         'season_number': self.config['season_number'],
+                        'episode_number': self.config['episode_number'],
                         'upload_to_slowpics': True
                     }, frames, processed_videos)
                     
@@ -885,6 +960,13 @@ class ScreenshotComparisonGUI:
                         self.comparison_url = comparison_url
                         results += f"\nUploaded to slow.pics: {comparison_url}\n"
                         results += "Comparison opened in your browser!\n"
+                        
+                        # Clear screenshots folder after successful upload if option is enabled
+                        if self.config.get('clear_after_upload', False):
+                            if self.clear_screenshots_folder():
+                                results += "Screenshots folder cleared after successful upload.\n"
+                            else:
+                                results += "Warning: Could not clear screenshots folder after upload.\n"
                     else:
                         results += "\nUpload to slow.pics failed, but screenshots are saved locally.\n"
                         
@@ -1019,10 +1101,12 @@ class ScreenshotComparisonGUI:
             # Update configuration for upload
             show_name = self.show_name_var.get().strip()
             season_number = f"S{self.season_var.get():02d}" if self.is_series_var.get() else ""
+            episode_number = f"E{self.episode_var.get():02d}" if self.is_series_var.get() and self.is_episode_var.get() else ""
             
             comparison_url = upload_to_slowpics({
                 'show_name': show_name,
                 'season_number': season_number,
+                'episode_number': episode_number,
                 'upload_to_slowpics': True
             }, frames, processed_videos)
             
@@ -1038,6 +1122,13 @@ class ScreenshotComparisonGUI:
                     results += f"• Season: {season_number}\n"
                 results += f"\nComparison URL: {comparison_url}\n"
                 results += "Opened in your browser!\n"
+                
+                # Clear screenshots folder after successful upload if option is enabled
+                if self.clear_after_upload_var.get():
+                    if self.clear_screenshots_folder():
+                        results += "Screenshots folder cleared after successful upload.\n"
+                    else:
+                        results += "Warning: Could not clear screenshots folder after upload.\n"
             else:
                 raise Exception("Upload failed - no URL returned")
             
@@ -1086,14 +1177,34 @@ class ScreenshotComparisonGUI:
         self.results_text.delete(1.0, tk.END)
         self.comparison_url = None
         self.url_button.config(state='disabled')
-
+    
+    def clear_screenshots_folder(self):
+        """Clear all contents of the Screenshots folder"""
+        screenshots_folder = "Screenshots"
+        if os.path.exists(screenshots_folder):
+            try:
+                import shutil
+                # Remove all subdirectories and files
+                for filename in os.listdir(screenshots_folder):
+                    file_path = os.path.join(screenshots_folder, filename)
+                    if os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                    else:
+                        os.remove(file_path)
+                return True
+            except Exception as e:
+                print(f"Error clearing screenshots folder: {e}")
+                return False
+        return True  # Folder doesn't exist, consider it "cleared"
+    
 
 class VideoConfigDialog:
-    def __init__(self, parent, file_path, comparison_type, edit_index=None):
+    def __init__(self, parent, file_path, comparison_type, edit_index=None, existing_video=None):
         self.parent = parent
         self.file_path = file_path
         self.comparison_type = comparison_type
         self.edit_index = edit_index
+        self.existing_video = existing_video
         self.result = None
         
         self.dialog = tk.Toplevel(parent)
@@ -1113,6 +1224,10 @@ class VideoConfigDialog:
         
         # Load video info
         self.load_video_info()
+        
+        # Load existing video data if editing
+        if self.existing_video:
+            self.load_existing_values()
     
     def setup_dialog(self):
         """Set up the dialog UI with scrollable content"""
@@ -1783,6 +1898,62 @@ class VideoConfigDialog:
             print(f"[ERROR] Crop preset '{preset_label}' not found in preset map")
             return {'left': 0, 'right': 0, 'top': 0, 'bottom': 0}
     
+    def load_existing_values(self):
+        """Load existing video configuration values into the dialog"""
+        if not self.existing_video:
+            return
+        
+        video = self.existing_video
+        
+        # Set display name
+        if 'name' in video:
+            self.name_var.set(video['name'])
+        
+        # Set video type (for source vs encode)
+        if self.comparison_type == 'source_vs_encode' and 'is_source' in video:
+            self.type_var.set('source' if video['is_source'] else 'encode')
+        
+        # Set resize settings
+        if 'resize' in video and video['resize']:
+            if 'preset_resolution' in video and video['preset_resolution']:
+                self.resize_var.set('preset')
+                self.preset_var.set(video['preset_resolution'])
+            elif 'width' in video and 'height' in video:
+                self.resize_var.set('custom')
+                self.width_var.set(video['width'])
+                self.height_var.set(video['height'])
+        else:
+            self.resize_var.set('none')
+        
+        # Set crop settings
+        if 'crop' in video and video['crop']:
+            if 'preset_crop' in video and video['preset_crop']:
+                self.crop_var.set('preset')
+                self.crop_preset_var.set(video['preset_crop'])
+            elif any(video['crop'].get(k, 0) for k in ['left', 'right', 'top', 'bottom']):
+                self.crop_var.set('manual')
+                # Set manual crop values
+                self.crop_left_var.set(video['crop'].get('left', 0))
+                self.crop_right_var.set(video['crop'].get('right', 0))
+                self.crop_top_var.set(video['crop'].get('top', 0))
+                self.crop_bottom_var.set(video['crop'].get('bottom', 0))
+        else:
+            self.crop_var.set('none')
+        
+        # Set trim/pad settings
+        if 'trim_start' in video:
+            self.trim_start_var.set(video['trim_start'])
+        if 'trim_end' in video:
+            self.trim_end_var.set(video['trim_end'])
+        if 'pad_start' in video:
+            self.pad_start_var.set(video['pad_start'])
+        if 'pad_end' in video:
+            self.pad_end_var.set(video['pad_end'])
+        
+        # Update the UI state after setting values
+        self.dialog.after(10, self.update_resize_state)
+        self.dialog.after(10, self.update_crop_state)
+    
     def ok(self):
         """Handle OK button"""
         # Build result configuration
@@ -1805,12 +1976,16 @@ class VideoConfigDialog:
             if preset_label in self.preset_map:
                 width, height = self.preset_map[preset_label]
                 self.result['resize'] = (width, height)
+                self.result['preset_resolution'] = preset_label  # Save the preset name
             else:
                 self.result['resize'] = None
+                self.result['preset_resolution'] = None
         elif resize_mode == 'custom':
             self.result['resize'] = (self.width_var.get(), self.height_var.get())
+            self.result['preset_resolution'] = None
         else:
             self.result['resize'] = None
+            self.result['preset_resolution'] = None
         
         # Process crop settings
         crop_mode = self.crop_var.get()
@@ -1822,8 +1997,10 @@ class VideoConfigDialog:
             
             if any(preset_crop.values()):
                 self.result['crop'] = preset_crop
+                self.result['preset_crop'] = self.crop_preset_var.get()  # Save the preset name
             else:
                 self.result['crop'] = None
+                self.result['preset_crop'] = None
         elif crop_mode == 'manual':
             crop_values = {
                 'left': self.crop_left_var.get(),
@@ -1833,10 +2010,13 @@ class VideoConfigDialog:
             }
             if any(crop_values.values()):
                 self.result['crop'] = crop_values
+                self.result['preset_crop'] = None
             else:
                 self.result['crop'] = None
+                self.result['preset_crop'] = None
         else:
             self.result['crop'] = None
+            self.result['preset_crop'] = None
         
         # Additional settings
         self.result.update({
