@@ -49,7 +49,7 @@ python gui_app.py
 python comparev2.py
 
 # Advanced CLI Mode (Professional automation) 🆕
-python comp-cli.py --help
+python comp-cli.py -h
 
 ### 🔨 I want to build my own because reasons
 ```bash
@@ -145,18 +145,18 @@ python comp-cli.py video1 video2 [video3...] [options]
 
 **Individual Video Processing:**
 ```bash
---crop     "x1,y1,x2,y2;x1,y1,x2,y2"    # Crop coordinates per video
---resize   "1920x1080;1280x720"          # Target resolution per video  
---trim     "00:10:00;00:05:30"           # Start time per video
---padding  "5;10"                        # Padding seconds per video
---order    "encode,resize,crop;crop,resize" # Processing order per video
+-vc, --video-crops     "x1,y1,x2,y2;x1,y1,x2,y2"    # Crop coordinates per video
+-vr, --video-resolutions   "1920x1080;1280x720"          # Target resolution per video  
+-ts, --trim-start     FRAMES                         # Trim frames from start per video
+-ps, --pad-start      FRAMES                         # Padding frames per video
+-vpo, --video-processing-orders    "cf;rf"           # Processing order per video (cf=crop-first, rf=resize-first)
 ```
 
 **Upload existing screenshots:**
 ```bash
-python comp-cli.py --upload-only \
-  --collection-name "Previous Comparison" \
-  --screenshot-dir "old_screenshots"
+python comp-cli.py -uo \
+  -cn "Previous Comparison" \
+  -sd "old_screenshots"
 ```
 
 #### ⚠️ Important Notes

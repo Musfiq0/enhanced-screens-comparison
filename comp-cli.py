@@ -75,19 +75,19 @@ Examples:
   comp-cli.py video1.mkv video2.mkv
   
   # Source vs encode with custom frames
-  comp-cli.py -m source-encode source.mkv encode.mkv -f 1000,2000,3000
+  comp-cli.py -m se source.mkv encode.mkv -f 1000,2000,3000
   
   # With cropping and resizing
   comp-cli.py video1.mkv video2.mkv -c tv-full -r 1080p
   
-  # Individual video processing
-  comp-cli.py v1.mkv v2.mkv --video-crops "240,0,240,0;auto" --video-resolutions "1920,1080;1280,720"
+  # Individual video processing (using short commands)
+  comp-cli.py v1.mkv v2.mkv -vc "240,0,240,0;auto" -vr "1920,1080;1280,720"
   
-  # With upload to slow.pics
-  comp-cli.py video1.mkv video2.mkv -u -cn "My Comparison" -s 1 -e 5
+  # With upload to slow.pics (using short commands)
+  comp-cli.py video1.mkv video2.mkv -u -cn "My Comparison" -ct s
   
   # Upload existing screenshots only
-  comp-cli.py --upload-only -sd Screenshots -cn "My Collection"
+  comp-cli.py -uo -sd Screenshots -cn "My Collection"
   
 Crop presets: tv-full, tv-hd, movie-235, movie-240, anime-480, manual
 Resolution presets: 720p, 1080p, 1440p, 4k, manual
@@ -147,20 +147,20 @@ Resolution presets: 720p, 1080p, 1440p, 4k, manual
         )
         
         frame_group.add_argument(
-            '--random-frames',
+            '-rf', '--random-frames',
             type=int,
             metavar='COUNT',
             help='Generate COUNT random frames'
         )
         
         frame_group.add_argument(
-            '--frame-range',
+            '-fr', '--frame-range',
             metavar='START:END',
             help='Frame range in format START:END (e.g., "1000:5000")'
         )
         
         frame_group.add_argument(
-            '--frame-interval',
+            '-fi', '--frame-interval',
             type=int,
             metavar='INTERVAL',
             help='Take every Nth frame in range'
@@ -182,35 +182,35 @@ Resolution presets: 720p, 1080p, 1440p, 4k, manual
         )
         
         process_group.add_argument(
-            '--processing-order',
+            '-po', '--processing-order',
             choices=['crop-first', 'cf', 'resize-first', 'rf'],
             default='resize-first',
             help='Order of processing operations (default: resize-first)'
         )
         
         process_group.add_argument(
-            '--trim-start',
+            '-ts', '--trim-start',
             type=int,
             default=0,
             help='Frames to trim from start of all videos'
         )
         
         process_group.add_argument(
-            '--trim-end',
+            '-te', '--trim-end',
             type=int,
             default=0,
             help='Frames to trim from end of all videos'
         )
         
         process_group.add_argument(
-            '--pad-start',
+            '-ps', '--pad-start',
             type=int,
             default=0,
             help='Black frames to add at start of all videos'
         )
         
         process_group.add_argument(
-            '--pad-end',
+            '-pe', '--pad-end',
             type=int,
             default=0,
             help='Black frames to add at end of all videos'
@@ -222,17 +222,17 @@ Resolution presets: 720p, 1080p, 1440p, 4k, manual
         individual_group = parser.add_argument_group('Individual Video Processing')
         
         individual_group.add_argument(
-            '--video-crops',
+            '-vc', '--video-crops',
             help='Semicolon-separated crop values for each video. Use "auto" for auto-detect, "none" for no crop. Example: "240,0,240,0;auto;none"'
         )
         
         individual_group.add_argument(
-            '--video-resolutions',
+            '-vr', '--video-resolutions',
             help='Semicolon-separated resolutions for each video. Example: "1920,1080;1280,720;none"'
         )
         
         individual_group.add_argument(
-            '--video-processing-orders',
+            '-vpo', '--video-processing-orders',
             help='Semicolon-separated processing orders for each video. Values: crop-first, resize-first'
         )
         
@@ -242,7 +242,7 @@ Resolution presets: 720p, 1080p, 1440p, 4k, manual
         resize_group = parser.add_argument_group('Resize Configuration')
         
         resize_group.add_argument(
-            '--resize-method',
+            '-rm', '--resize-method',
             choices=['none', 'n', 'common', 'c', 'individual', 'i'],
             default='none',
             help='Resize method (default: none). Use n/c/i for short.'
@@ -284,13 +284,13 @@ Resolution presets: 720p, 1080p, 1440p, 4k, manual
         )
         
         upload_group.add_argument(
-            '--no-browser',
+            '-nb', '--no-browser',
             action='store_true',
             help='Don\'t open browser after upload'
         )
         
         upload_group.add_argument(
-            '--dry-run',
+            '-dr', '--dry-run',
             action='store_true',
             help='Test configuration without actually uploading'
         )
@@ -301,7 +301,7 @@ Resolution presets: 720p, 1080p, 1440p, 4k, manual
         upload_only_group = parser.add_argument_group('Upload Only Mode')
         
         upload_only_group.add_argument(
-            '--upload-only',
+            '-uo', '--upload-only',
             action='store_true',
             help='Upload existing screenshots without processing videos'
         )
@@ -322,7 +322,7 @@ Resolution presets: 720p, 1080p, 1440p, 4k, manual
         )
         
         config_group.add_argument(
-            '--save-config',
+            '-sc', '--save-config',
             help='Save current configuration to JSON file'
         )
         
