@@ -5,7 +5,7 @@
 [![Windows](https://img.shields.io/badge/Platform-Windows-blue?logo=windows)](https://github.com) 
 [![Python](https://img.shields.io/badge/Python-3.8+-green?logo=python)](https://python.org) 
 [![Interface](https://img.shields.io/badge/Interface-GUI%20%2B%20CLI%20%2B%20Pro--CLI-orange)](https://github.com) 
-[![Version](https://img.shields.io/badge/Version-3.0-brightgreen)](https://github.com)
+[![Version](https://img.shields.io/badge/Version-3.2-brightgreen)](https://github.com)
 
 > Ever wanted to compare multiple videos but got tired of writing VapourSynth/AviSynth scripts for each comparison? This tool automates the entire process and even uploads the results to slow.pics automatically! 🚀
 
@@ -18,6 +18,7 @@
 - 📐 **Intelligent resizing** (4K → 1080p without breaking aspect ratios)
 - 🌐 **Auto-upload to slow.pics** (and opens in your browser like magic)
 - 🎭 **GUI for normies, Console for nerds, CLI for pros** 🆕
+- 🎨 **Modern redesigned interface** with unified control panel and visual icons (v3.2) 🆕
 - ⚡ **Actually fast** (when you have good hardware)
 - 🚀 **Professional automation** with advanced CLI (v3.0)
 
@@ -62,22 +63,35 @@ python build_exe.py
 
 ### 🖱️ GUI Mode (For humans)
 
-1. **Launch the app** (wow, such difficulty)
-2. **Configure settings** in the Settings tab:
-   - **File Management**: Auto-clear screenshots before/after generation
-   - **Frame Selection**: Choose interval or custom frames
-   - **Upload Options**: Enable slow.pics upload with episode support
-3. **Pick your poison**:
-   - `Multiple Sources` → Compare different releases of the same anime
-   - `Source vs Encode` → Compare your encode against the original
-4. **Add videos** → Choose your method:
-   - **🆕 Drag & Drop**: Simply drag video files from Windows Explorer into the app
-   - **Classic Method**: Click "Add Video" button and browse for files
-   - Configure each video with nice names like "Netflix" or "My Trash Encode"
-   - Pick from **tons of crop presets** (letterbox, streaming logos, dirty lines, etc.)
-   - Choose target resolution (480p to 4K because why not)
-5. **Hit Generate** → Watch the magic happen ✨
-6. **Get results** → Screenshots saved locally + auto-uploaded to slow.pics with proper naming
+1. **🎯 Configure Comparison Type** (Left section):
+   - `Multiple Sources` → Compare different releases of the same anime/content
+   - `Source vs Encode` → Compare your encode against the original source
+
+2. **⚡ Execute Actions** (Center-left section):
+   - **🎬 Generate**: Create new screenshots with live progress in Results tab
+   - **📤 Upload**: Upload existing screenshots to slow.pics
+
+3. **🎮 Manage Videos** (Center-right section):
+   - **🗑 Remove**: Delete selected video from comparison
+   - **✏ Edit**: Modify video settings (name, crop, resolution)
+   - **🗂 Clear All**: Remove all videos from list
+   - **⏹ Stop**: Halt current generation process
+
+4. **📊 Monitor Status** (Right section):
+   - Real-time progress bar during operations
+   - Current operation status display
+
+**📁 Video Loading**
+- **🆕 Click or Drag & Drop**: Click the large drop zone or drag video files directly into the app
+- Configure each video with descriptive names like "Netflix", "Crunchyroll", "My Encode"
+- Select from **comprehensive crop presets** (letterbox removal, streaming logos, dirty lines, etc.)
+- Choose target resolution (480p to 4K)
+
+**⚙️ Settings Configuration** (Accessible via gear icon):
+- **File Management**: Auto-clear screenshots before/after generation
+- **Frame Selection**: Choose interval or specify custom frames  
+- **Upload Options**: Enable slow.pics upload with episode naming support
+- **Processing**: VapourSynth backend configuration
 
 
 ### ⌨️ Console Mode (For the command line warriors)
@@ -109,12 +123,12 @@ python comparev2.py --version    # Show version information
 [✅] Successfully generated: 20/20
 ```
 
-### 🚀 Advanced CLI Mode (v3.0 - Professional Automation) 
+### 🚀 Advanced CLI Mode (v3.0 - Automation) 
 
 **Perfect for batch processing, automation, and power users!**
 
 ```bash
-# Professional CLI with full feature support
+# CLI with full feature support
 python comp-cli.py [videos] [options]
 
 # Quick examples:
@@ -238,6 +252,25 @@ python -c "import PyInstaller; print('Build tools ready')"
 - **For best quality**: Install VapourSynth system-wide
 
 ## 🆕 Recent Updates
+
+### Version 3.2 - GUI Redesign & UX Improvements 🎨
+
+**🎛️ Complete Interface Overhaul**
+- ✅ **Unified Control Panel** - Consolidated all controls into a single top panel with four labeled sections
+- ✅ **Comparison Type Panel** - Clear radio button selection for Multiple Sources vs Source vs Encode
+- ✅ **Actions Panel** - Primary operations (🎬 Generate, 📤 Upload) with instant Results tab switching  
+- ✅ **Video Management Panel** - Compact 2x2 grid layout: 🗑 Remove, ✏ Edit, 🗂 Clear All, ⏹ Stop
+- ✅ **Status Panel** - Dedicated progress bar and status display for clear operation feedback
+
+**🎯 User Experience Enhancements**
+- ✅ **Clickable Drop Zone** - Large, prominent file selection area (click OR drag-and-drop)
+- ✅ **Settings Dialog** - All settings moved to clean modal window accessible via ⚙ Settings button
+- ✅ **Visual Icon System** - Descriptive icons on every button for immediate recognition
+- ✅ **Space Optimization** - Maximum space allocated to video list, streamlined top controls
+- ✅ **Instant Operation Feedback** - Generate/Upload automatically switch to Results tab with live progress
+- ✅ **Professional Design** - Modern layout with proper spacing, visual hierarchy, and clean aesthetics
+- ✅ **Responsive Layout** - Optimal control arrangement that scales with window size
+- ✅ **Removed Clutter** - Eliminated Add Video button, moved settings out of tabs for cleaner interface
 
 ### Version 3.0 - Advanced CLI Release 🚀
 - ✅ **🆕 Professional CLI Interface** - Complete rewrite of command-line interface for automation

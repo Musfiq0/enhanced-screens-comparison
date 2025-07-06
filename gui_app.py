@@ -41,12 +41,272 @@ except ImportError as e:
     COMPARISON_CORE_AVAILABLE = False
     print(f"Warning: Could not import comparison core: {e}")
 
+class SettingsDialog:
+    """Dialog for configuring screenshot generation settings"""
+    def __init__(self, parent, config):
+        self.parent = parent
+        self.config = config.copy()  # Work with a copy
+        self.result = None
+        
+        # Create dialog window
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("Screenshot Generation Settings")
+        self.dialog.geometry("500x600")
+        self.dialog.resizable(False, False)
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+        
+        # Center the dialog
+        self.dialog.geometry("+%d+%d" % (parent.winfo_rootx() + 50, parent.winfo_rooty() + 50))
+        
+        self.setup_ui()
+        
+    def setup_ui(self):
+        """Set up the settings dialog UI"""
+        main_frame = ttk.Frame(self.dialog, padding=20)
+        main_frame.pack(fill='both', expand=True)
+        
+        # File Management settings
+        file_mgmt_frame = ttk.LabelFrame(main_frame, text="File Management", padding=10)
+        file_mgmt_frame.pack(fill='x', pady=(0, 15))
+        
+        self.clear_before_var = tk.BooleanVar(value=self.config.get('clear_before_generation', False))
+        ttk.Checkbutton(file_mgmt_frame, text="Clear screenshots folder before generating new screenshots", 
+                       variable=self.clear_before_var).pack(anchor='w')
+        
+        self.clear_after_upload_var = tk.BooleanVar(value=self.config.get('clear_after_upload', False))
+        ttk.Checkbutton(file_mgmt_frame, text="Clear screenshots folder after successful upload to slow.pics", 
+                       variable=self.clear_after_upload_var).pack(anchor='w', pady=(5, 0))
+        
+        # Frame selection
+        frame_frame = ttk.LabelFrame(main_frame, text="Frame Selection", padding=10)
+        frame_frame.pack(fill='x', pady=(0, 15))
+        
+        # Determine current method
+        current_method = 'custom' if self.config.get('custom_frames') else 'interval'
+        
+        self.frame_method_var = tk.StringVar(value=current_method)
+        ttk.Radiobutton(frame_frame, text="Use frame interval", 
+                       variable=self.frame_method_var, value='interval',
+                       command=self.on_frame_method_change).pack(anchor='w')
+        
+        interval_frame = ttk.Frame(frame_frame)
+        interval_frame.pack(fill='x', padx=(20, 0))
+        
+        ttk.Label(interval_frame, text="Interval:").pack(side='left')
+        self.interval_var = tk.IntVar(value=self.config.get('frame_interval', 150))
+        ttk.Spinbox(interval_frame, from_=1, to=1000, textvariable=self.interval_var, 
+                   width=10).pack(side='left', padx=(5, 0))
+        ttk.Label(interval_frame, text="frames").pack(side='left', padx=(5, 0))
+        
+        ttk.Radiobutton(frame_frame, text="Specify custom frame numbers", 
+                       variable=self.frame_method_var, value='custom',
+                       command=self.on_frame_method_change).pack(anchor='w', pady=(10, 0))
+        
+        custom_frame = ttk.Frame(frame_frame)
+        custom_frame.pack(fill='x', padx=(20, 0))
+        
+        ttk.Label(custom_frame, text="Frames:").pack(side='left')
+        
+        # Convert custom frames to string if they exist
+        custom_frames_str = ""
+        if self.config.get('custom_frames'):
+            custom_frames_str = ",".join(map(str, self.config['custom_frames']))
+        
+        self.custom_frames_var = tk.StringVar(value=custom_frames_str or "100,500,1000")
+        self.custom_frames_entry = ttk.Entry(custom_frame, textvariable=self.custom_frames_var, width=30)
+        self.custom_frames_entry.pack(side='left', padx=(5, 0))
+        
+        ttk.Label(custom_frame, text="(comma-separated)").pack(side='left', padx=(5, 0))
+        
+        # Upload settings
+        upload_frame = ttk.LabelFrame(main_frame, text="slow.pics Upload", padding=10)
+        upload_frame.pack(fill='x', pady=(0, 15))
+        
+        self.upload_var = tk.BooleanVar(value=self.config.get('upload_to_slowpics', False))
+        ttk.Checkbutton(upload_frame, text="Upload to slow.pics", 
+                       variable=self.upload_var,
+                       command=self.on_upload_change).pack(anchor='w')
+        
+        self.upload_settings_frame = ttk.Frame(upload_frame)
+        self.upload_settings_frame.pack(fill='x', padx=(20, 0))
+        
+        # Show name
+        name_frame = ttk.Frame(self.upload_settings_frame)
+        name_frame.pack(fill='x', pady=(5, 0))
+        
+        ttk.Label(name_frame, text="Show/Movie name:").pack(side='left')
+        self.show_name_var = tk.StringVar(value=self.config.get('show_name', ''))
+        ttk.Entry(name_frame, textvariable=self.show_name_var, width=30).pack(side='left', padx=(5, 0))
+        
+        # Season
+        season_frame = ttk.Frame(self.upload_settings_frame)
+        season_frame.pack(fill='x', pady=(5, 0))
+        
+        # Determine if series based on season_number
+        is_series = bool(self.config.get('season_number', ''))
+        self.is_series_var = tk.BooleanVar(value=is_series)
+        ttk.Checkbutton(season_frame, text="TV Series (has seasons)", 
+                       variable=self.is_series_var,
+                       command=self.on_series_change).pack(side='left')
+        
+        ttk.Label(season_frame, text="Season:").pack(side='left', padx=(20, 0))
+        
+        # Extract season number if it exists
+        season_num = 1
+        if self.config.get('season_number'):
+            try:
+                season_num = int(self.config['season_number'][1:])  # Remove 'S' prefix
+            except (ValueError, IndexError):
+                season_num = 1
+        
+        self.season_var = tk.IntVar(value=season_num)
+        self.season_spinbox = ttk.Spinbox(season_frame, from_=1, to=50, 
+                                         textvariable=self.season_var, width=5)
+        self.season_spinbox.pack(side='left', padx=(5, 0))
+        
+        # Episode
+        episode_frame = ttk.Frame(self.upload_settings_frame)
+        episode_frame.pack(fill='x', pady=(5, 0))
+        
+        # Determine if episode based on episode_number
+        is_episode = bool(self.config.get('episode_number', ''))
+        self.is_episode_var = tk.BooleanVar(value=is_episode)
+        ttk.Checkbutton(episode_frame, text="Single episode (not season pack)", 
+                       variable=self.is_episode_var,
+                       command=self.on_episode_change).pack(side='left')
+        
+        ttk.Label(episode_frame, text="Episode:").pack(side='left', padx=(20, 0))
+        
+        # Extract episode number if it exists
+        episode_num = 1
+        if self.config.get('episode_number'):
+            try:
+                episode_num = int(self.config['episode_number'][1:])  # Remove 'E' prefix
+            except (ValueError, IndexError):
+                episode_num = 1
+        
+        self.episode_var = tk.IntVar(value=episode_num)
+        self.episode_spinbox = ttk.Spinbox(episode_frame, from_=1, to=999, 
+                                          textvariable=self.episode_var, width=5)
+        self.episode_spinbox.pack(side='left', padx=(5, 0))
+        
+        # Button frame
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill='x', pady=(20, 0))
+        
+        ttk.Button(button_frame, text="Cancel", command=self.cancel).pack(side='right')
+        ttk.Button(button_frame, text="OK", command=self.ok).pack(side='right', padx=(0, 10))
+        
+        # Initialize state
+        self.on_frame_method_change()
+        self.on_upload_change()
+        self.on_series_change()
+        self.on_episode_change()
+    
+    def on_frame_method_change(self):
+        """Handle frame method change"""
+        if self.frame_method_var.get() == 'custom':
+            self.custom_frames_entry.configure(state='normal')
+        else:
+            self.custom_frames_entry.configure(state='disabled')
+    
+    def on_upload_change(self):
+        """Handle upload checkbox change"""
+        self.toggle_upload_settings(self.upload_var.get())
+    
+    def on_series_change(self):
+        """Handle series checkbox change"""
+        if self.is_series_var.get():
+            self.season_spinbox.configure(state='normal')
+        else:
+            self.season_spinbox.configure(state='disabled')
+            self.is_episode_var.set(False)
+            self.on_episode_change()
+    
+    def on_episode_change(self):
+        """Handle episode checkbox change"""
+        if self.is_episode_var.get() and self.is_series_var.get():
+            self.episode_spinbox.configure(state='normal')
+        else:
+            self.episode_spinbox.configure(state='disabled')
+    
+    def toggle_upload_settings(self, enabled):
+        """Toggle upload settings widgets"""
+        state = 'normal' if enabled else 'disabled'
+        for widget in self.upload_settings_frame.winfo_children():
+            for child in widget.winfo_children():
+                if hasattr(child, 'configure'):
+                    try:
+                        # Only configure widgets that support state
+                        if isinstance(child, (ttk.Entry, ttk.Checkbutton, ttk.Spinbox)):
+                            child.configure(state=state)
+                    except (tk.TclError, AttributeError):
+                        pass  # Some widgets don't support state
+        
+        # Handle spinboxes separately
+        if hasattr(self, 'season_spinbox'):
+            if enabled and self.is_series_var.get():
+                self.season_spinbox.configure(state='normal')
+            else:
+                self.season_spinbox.configure(state='disabled')
+        
+        if hasattr(self, 'episode_spinbox'):
+            if enabled and self.is_series_var.get() and self.is_episode_var.get():
+                self.episode_spinbox.configure(state='normal')
+            else:
+                self.episode_spinbox.configure(state='disabled')
+    
+    def ok(self):
+        """Apply settings and close dialog"""
+        # Update config with current values
+        self.config['clear_before_generation'] = self.clear_before_var.get()
+        self.config['clear_after_upload'] = self.clear_after_upload_var.get()
+        
+        if self.frame_method_var.get() == 'interval':
+            self.config['frame_interval'] = self.interval_var.get()
+            self.config['custom_frames'] = None
+        else:
+            try:
+                frames_text = self.custom_frames_var.get().strip()
+                if frames_text:
+                    self.config['custom_frames'] = [int(f.strip()) for f in frames_text.split(',') if f.strip()]
+                    self.config['frame_interval'] = None
+                else:
+                    raise ValueError("No frames specified")
+            except ValueError:
+                messagebox.showwarning("Warning", "Invalid custom frames. Using default interval.")
+                self.config['frame_interval'] = 150
+                self.config['custom_frames'] = None
+        
+        self.config['upload_to_slowpics'] = self.upload_var.get()
+        self.config['show_name'] = self.show_name_var.get().strip()
+        
+        if self.is_series_var.get():
+            self.config['season_number'] = f"S{self.season_var.get():02d}"
+            if self.is_episode_var.get():
+                self.config['episode_number'] = f"E{self.episode_var.get():02d}"
+            else:
+                self.config['episode_number'] = ""
+        else:
+            self.config['season_number'] = ""
+            self.config['episode_number'] = ""
+        
+        self.result = self.config
+        self.dialog.destroy()
+    
+    def cancel(self):
+        """Cancel and close dialog"""
+        self.result = None
+        self.dialog.destroy()
+
+
 class ScreenshotComparisonGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Enhanced Screenshot Comparison Tool")
-        self.root.geometry("900x700")
-        self.root.minsize(800, 600)
+        self.root.geometry("800x650")
+        self.root.minsize(750, 550)
         
         # Configure style
         self.style = ttk.Style()
@@ -92,16 +352,11 @@ class ScreenshotComparisonGUI:
         self.main_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.main_frame, text="Video Configuration")
         
-        # Settings tab
-        self.settings_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.settings_frame, text="Settings")
-        
         # Results tab
         self.results_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.results_frame, text="Results")
         
         self.setup_main_tab()
-        self.setup_settings_tab()
         self.setup_results_tab()
         
     def setup_main_tab(self):
@@ -117,25 +372,79 @@ class ScreenshotComparisonGUI:
                                    foreground='blue')
         self.info_label.pack()
         
-        # Comparison type
-        type_frame = ttk.LabelFrame(self.main_frame, text="Comparison Type", padding=10)
-        type_frame.pack(fill='x', pady=(0, 10))
+        # Top controls frame
+        controls_frame = ttk.Frame(self.main_frame)
+        controls_frame.pack(fill='x', pady=(0, 10))
+        
+        # Comparison type (left side)
+        type_frame = ttk.LabelFrame(controls_frame, text="Comparison Type", padding=10)
+        type_frame.pack(side='left', fill='y', padx=(0, 10))
         
         self.comparison_var = tk.StringVar(value='multiple_sources')
-        ttk.Radiobutton(type_frame, text="Multiple Sources Comparison", 
+        ttk.Radiobutton(type_frame, text="Multiple Sources", 
                        variable=self.comparison_var, value='multiple_sources',
                        command=self.on_comparison_type_change).pack(anchor='w')
-        ttk.Radiobutton(type_frame, text="Source vs Encode Comparison", 
+        ttk.Radiobutton(type_frame, text="Source vs Encode", 
                        variable=self.comparison_var, value='source_vs_encode',
                        command=self.on_comparison_type_change).pack(anchor='w')
+        
+        # Middle controls frame - Action buttons
+        action_controls = ttk.LabelFrame(controls_frame, text="Actions", padding=10)
+        action_controls.pack(side='left', fill='y', padx=(0, 10))
+        
+        # First row of action buttons
+        action_row1 = ttk.Frame(action_controls)
+        action_row1.pack(fill='x', pady=(0, 5))
+        
+        self.generate_button = ttk.Button(action_row1, text="🎬 Generate", 
+                  command=self.start_generation, style='Accent.TButton', width=14)
+        self.generate_button.pack(side='left', padx=(0, 5))
+        
+        ttk.Button(action_row1, text="📤 Upload", 
+                  command=self.upload_existing, width=14).pack(side='left')
+        
+        # Second row of action buttons
+        action_row2 = ttk.Frame(action_controls)
+        action_row2.pack(fill='x')
+        
+        self.stop_button = ttk.Button(action_row2, text="⏹ Stop", 
+                  command=self.stop_generation, width=14, state='disabled')
+        self.stop_button.pack(side='left', padx=(0, 5))
+        
+        ttk.Button(action_row2, text="⚙ Settings", 
+                  command=self.open_settings_dialog, width=14).pack(side='left')
+        
+        # Right controls frame - Video management
+        video_controls = ttk.LabelFrame(controls_frame, text="Video Management", padding=10)
+        video_controls.pack(side='left', fill='y', padx=(0, 10))
+        
+        # Video control buttons in a grid layout
+        ttk.Button(video_controls, text="🗑 Remove", 
+                  command=self.remove_video, width=14).grid(row=0, column=0, padx=(0, 5), pady=(0, 2))
+        ttk.Button(video_controls, text="✏ Edit", 
+                  command=self.edit_video, width=14).grid(row=0, column=1, pady=(0, 2))
+        ttk.Button(video_controls, text="🗂 Clear All", 
+                  command=self.clear_videos, width=14).grid(row=1, column=0, columnspan=2, pady=(2, 0))
+        
+        # Status and progress area (far right)
+        status_frame = ttk.LabelFrame(controls_frame, text="Status", padding=10)
+        status_frame.pack(side='right', fill='both', expand=True)
+        
+        self.status_label = ttk.Label(status_frame, text="Ready", font=('Arial', 10, 'bold'))
+        self.status_label.pack(pady=(0, 5))
+        
+        self.progress_var = tk.DoubleVar()
+        self.progress_bar = ttk.Progressbar(status_frame, variable=self.progress_var, 
+                                          mode='determinate')
+        self.progress_bar.pack(fill='x')
         
         # Video list
         video_frame = ttk.LabelFrame(self.main_frame, text="Video Sources", padding=10)
         video_frame.pack(fill='both', expand=True, pady=(0, 10))
         
-        # Drag and drop instructions
+        # Clickable drag and drop area
         self.drop_label = tk.Label(video_frame, 
-                                   text="📁 Drag and drop video files here to add them\n" +
+                                   text="📁 Click here or drag and drop video files\n" +
                                         "Supported formats: MP4, MKV, AVI, MOV, WMV, FLV, WEBM, M4V",
                                    font=('Arial', 10, 'italic'),
                                    fg='#666666',
@@ -143,8 +452,12 @@ class ScreenshotComparisonGUI:
                                    relief='ridge',
                                    borderwidth=2,
                                    justify='center',
-                                   pady=10)
+                                   pady=10,
+                                   cursor='hand2')
         self.drop_label.pack(fill='x', pady=(0, 10))
+        
+        # Make drop label clickable
+        self.drop_label.bind('<Button-1>', self.on_drop_label_click)
         
         # Video list with scrollbar
         list_frame = ttk.Frame(video_frame)
@@ -152,7 +465,7 @@ class ScreenshotComparisonGUI:
         
         # Treeview for video list
         columns = ('Name', 'Path', 'Type', 'Resolution')
-        self.video_tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=8)
+        self.video_tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=6)
         
         for col in columns:
             self.video_tree.heading(col, text=col)
@@ -173,149 +486,18 @@ class ScreenshotComparisonGUI:
         # Configure drag and drop for the video list area
         self.setup_drag_and_drop()
         
-        # Video control buttons
-        button_frame = ttk.Frame(video_frame)
-        button_frame.pack(fill='x', pady=(10, 0))
+    def on_drop_label_click(self, event):
+        """Handle click on the drop label to open file dialog"""
+        self.add_video()
         
-        ttk.Button(button_frame, text="Add Video", command=self.add_video).pack(side='left', padx=(0, 5))
-        ttk.Button(button_frame, text="Remove Selected", command=self.remove_video).pack(side='left', padx=(0, 5))
-        ttk.Button(button_frame, text="Edit Selected", command=self.edit_video).pack(side='left', padx=(0, 5))
-        ttk.Button(button_frame, text="Clear All", command=self.clear_videos).pack(side='left', padx=(0, 5))
+    def open_settings_dialog(self):
+        """Open the settings configuration dialog"""
+        dialog = SettingsDialog(self.root, self.config)
+        self.root.wait_window(dialog.dialog)
         
-        # Generate buttons
-        generate_frame = ttk.Frame(self.main_frame)
-        generate_frame.pack(fill='x', pady=(10, 0))
-        
-        self.generate_button = ttk.Button(generate_frame, text="Generate Screenshots", 
-                  command=self.start_generation, style='Accent.TButton',
-                  width=25)
-        self.generate_button.pack(side='left')
-        
-        self.stop_button = ttk.Button(generate_frame, text="Stop Generation", 
-                  command=self.stop_generation, width=20, state='disabled')
-        self.stop_button.pack(side='left', padx=(10, 0))
-        
-        ttk.Button(generate_frame, text="Upload Existing", 
-                  command=self.upload_existing, width=20).pack(side='left', padx=(10, 0))
-        
-        # Progress bar
-        self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(generate_frame, variable=self.progress_var, 
-                                          length=200, mode='determinate')
-        self.progress_bar.pack(side='right', padx=(10, 0))
-        
-        self.status_label = ttk.Label(generate_frame, text="Ready")
-        self.status_label.pack(side='right', padx=(10, 0))
-        
-    def setup_settings_tab(self):
-        """Set up the settings tab"""
-        # File Management settings
-        file_mgmt_frame = ttk.LabelFrame(self.settings_frame, text="File Management", padding=10)
-        file_mgmt_frame.pack(fill='x', pady=(0, 10))
-        
-        self.clear_before_var = tk.BooleanVar()
-        ttk.Checkbutton(file_mgmt_frame, text="Clear screenshots folder before generating new screenshots", 
-                       variable=self.clear_before_var).pack(anchor='w')
-        
-        self.clear_after_upload_var = tk.BooleanVar()
-        ttk.Checkbutton(file_mgmt_frame, text="Clear screenshots folder after successful upload to slow.pics", 
-                       variable=self.clear_after_upload_var).pack(anchor='w', pady=(5, 0))
-        
-        # Frame selection
-        frame_frame = ttk.LabelFrame(self.settings_frame, text="Frame Selection", padding=10)
-        frame_frame.pack(fill='x', pady=(0, 10))
-        
-        self.frame_method_var = tk.StringVar(value='interval')
-        ttk.Radiobutton(frame_frame, text="Use frame interval", 
-                       variable=self.frame_method_var, value='interval',
-                       command=self.on_frame_method_change).pack(anchor='w')
-        
-        interval_frame = ttk.Frame(frame_frame)
-        interval_frame.pack(fill='x', padx=(20, 0))
-        
-        ttk.Label(interval_frame, text="Interval:").pack(side='left')
-        self.interval_var = tk.IntVar(value=150)
-        ttk.Spinbox(interval_frame, from_=1, to=1000, textvariable=self.interval_var, 
-                   width=10).pack(side='left', padx=(5, 0))
-        ttk.Label(interval_frame, text="frames").pack(side='left', padx=(5, 0))
-        
-        ttk.Radiobutton(frame_frame, text="Specify custom frame numbers", 
-                       variable=self.frame_method_var, value='custom',
-                       command=self.on_frame_method_change).pack(anchor='w', pady=(10, 0))
-        
-        custom_frame = ttk.Frame(frame_frame)
-        custom_frame.pack(fill='x', padx=(20, 0))
-        
-        ttk.Label(custom_frame, text="Frames:").pack(side='left')
-        self.custom_frames_var = tk.StringVar(value="100,500,1000")
-        self.custom_frames_entry = ttk.Entry(custom_frame, textvariable=self.custom_frames_var, 
-                                           width=30)
-        self.custom_frames_entry.pack(side='left', padx=(5, 0))
-        self.custom_frames_entry.configure(state='disabled')
-        
-        ttk.Label(custom_frame, text="(comma-separated)").pack(side='left', padx=(5, 0))
-        
-        # Upload settings
-        upload_frame = ttk.LabelFrame(self.settings_frame, text="slow.pics Upload", padding=10)
-        upload_frame.pack(fill='x', pady=(0, 10))
-        
-        self.upload_var = tk.BooleanVar()
-        ttk.Checkbutton(upload_frame, text="Upload to slow.pics", 
-                       variable=self.upload_var,
-                       command=self.on_upload_change).pack(anchor='w')
-        
-        self.upload_settings_frame = ttk.Frame(upload_frame)
-        self.upload_settings_frame.pack(fill='x', padx=(20, 0))
-        
-        # Show name
-        name_frame = ttk.Frame(self.upload_settings_frame)
-        name_frame.pack(fill='x', pady=(5, 0))
-        
-        ttk.Label(name_frame, text="Show/Movie name:").pack(side='left')
-        self.show_name_var = tk.StringVar()
-        ttk.Entry(name_frame, textvariable=self.show_name_var, width=30).pack(side='left', padx=(5, 0))
-        
-        # Season
-        season_frame = ttk.Frame(self.upload_settings_frame)
-        season_frame.pack(fill='x', pady=(5, 0))
-        
-        self.is_series_var = tk.BooleanVar()
-        ttk.Checkbutton(season_frame, text="TV Series (has seasons)", 
-                       variable=self.is_series_var,
-                       command=self.on_series_change).pack(side='left')
-        
-        ttk.Label(season_frame, text="Season:").pack(side='left', padx=(20, 0))
-        self.season_var = tk.IntVar(value=1)
-        self.season_spinbox = ttk.Spinbox(season_frame, from_=1, to=50, 
-                                         textvariable=self.season_var, width=5)
-        self.season_spinbox.pack(side='left', padx=(5, 0))
-        self.season_spinbox.configure(state='disabled')
-        
-        # Episode
-        episode_frame = ttk.Frame(self.upload_settings_frame)
-        episode_frame.pack(fill='x', pady=(5, 0))
-        
-        self.is_episode_var = tk.BooleanVar()
-        ttk.Checkbutton(episode_frame, text="Single episode (not season pack)", 
-                       variable=self.is_episode_var,
-                       command=self.on_episode_change).pack(side='left')
-        
-        ttk.Label(episode_frame, text="Episode:").pack(side='left', padx=(20, 0))
-        self.episode_var = tk.IntVar(value=1)
-        self.episode_spinbox = ttk.Spinbox(episode_frame, from_=1, to=999, 
-                                          textvariable=self.episode_var, width=5)
-        self.episode_spinbox.pack(side='left', padx=(5, 0))
-        self.episode_spinbox.configure(state='disabled')
-        
-        # Initially disable upload settings
-        self.toggle_upload_settings(False)
-        
-        # Processing info
-        info_frame = ttk.LabelFrame(self.settings_frame, text="Processing Information", padding=10)
-        info_frame.pack(fill='both', expand=True)
-        
-        self.processing_info = scrolledtext.ScrolledText(info_frame, height=10, wrap='word')
-        self.processing_info.pack(fill='both', expand=True)
+        if dialog.result:
+            # Update configuration with results from dialog
+            self.config.update(dialog.result)
         
     def setup_results_tab(self):
         """Set up the results tab"""
@@ -382,97 +564,11 @@ class ScreenshotComparisonGUI:
         
         self.info_label.config(text=mode_text.get(mode, f'{mode.title()} Mode'), 
                               foreground='green')
-        
-        # Update processing info in settings
-        info_text = f"Active Processing Mode: {mode.upper()}\n\n"
-        info_text += "Available Libraries:\n"
-        
-        try:
-            # Import detection flags
-            from comparev2 import (VAPOURSYNTH_AVAILABLE, OPENCV_AVAILABLE, 
-                                 PIL_AVAILABLE, NUMPY_AVAILABLE)
-            
-            info_text += f"VapourSynth: {'Available' if VAPOURSYNTH_AVAILABLE else 'Not Available'}\n"
-            info_text += f"OpenCV: {'Available' if OPENCV_AVAILABLE else 'Not Available'}\n"
-            info_text += f"PIL/Pillow: {'Available' if PIL_AVAILABLE else 'Not Available'}\n"
-            info_text += f"NumPy: {'Available' if NUMPY_AVAILABLE else 'Not Available'}\n\n"
-            
-            if mode == 'vapoursynth':
-                info_text += "Features:\n• High-quality video processing\n• Advanced filtering\n• Optimal screenshot generation\n"
-            elif mode == 'opencv':
-                info_text += "Features:\n• Good video processing\n• Wide format support\n• Reliable performance\n"
-            elif mode == 'pil':
-                info_text += "Features:\n• Basic image processing\n• Limited video support\n• Lightweight\n"
-                
-        except ImportError:
-            info_text += "Could not detect library status"
-            
-        self.processing_info.delete(1.0, tk.END)
-        self.processing_info.insert(1.0, info_text)
     
     def on_comparison_type_change(self):
         """Handle comparison type change"""
         self.config['comparison_type'] = self.comparison_var.get()
         
-    def on_frame_method_change(self):
-        """Handle frame selection method change"""
-        if self.frame_method_var.get() == 'custom':
-            self.custom_frames_entry.configure(state='normal')
-        else:
-            self.custom_frames_entry.configure(state='disabled')
-    
-    def on_upload_change(self):
-        """Handle upload checkbox change"""
-        self.toggle_upload_settings(self.upload_var.get())
-    
-    def on_series_change(self):
-        """Handle series checkbox change"""
-        if self.upload_var.get() and self.is_series_var.get():
-            self.season_spinbox.configure(state='normal')
-            # Episode checkbox is only available if series is checked
-            for widget in self.upload_settings_frame.winfo_children():
-                for child in widget.winfo_children():
-                    if isinstance(child, ttk.Checkbutton) and "Single episode" in str(child.cget('text')):
-                        child.configure(state='normal')
-                        break
-        else:
-            self.season_spinbox.configure(state='disabled')
-            self.episode_spinbox.configure(state='disabled')
-            self.is_episode_var.set(False)
-            # Disable episode checkbox
-            for widget in self.upload_settings_frame.winfo_children():
-                for child in widget.winfo_children():
-                    if isinstance(child, ttk.Checkbutton) and "Single episode" in str(child.cget('text')):
-                        child.configure(state='disabled')
-                        break
-    
-    def on_episode_change(self):
-        """Handle episode checkbox change"""
-        if self.upload_var.get() and self.is_series_var.get() and self.is_episode_var.get():
-            self.episode_spinbox.configure(state='normal')
-        else:
-            self.episode_spinbox.configure(state='disabled')
-    
-    def toggle_upload_settings(self, enabled):
-        """Enable/disable upload settings"""
-        state = 'normal' if enabled else 'disabled'
-        for widget in self.upload_settings_frame.winfo_children():
-            for child in widget.winfo_children():
-                if isinstance(child, (ttk.Entry, ttk.Checkbutton)):
-                    child.configure(state=state)
-        
-        # Handle season spinbox separately - only enable if both upload is enabled AND series checkbox is checked
-        if enabled and self.is_series_var.get():
-            self.season_spinbox.configure(state='normal')
-        else:
-            self.season_spinbox.configure(state='disabled')
-        
-        # Handle episode spinbox - enable only if upload, series, and episode checkboxes are all checked
-        if enabled and self.is_series_var.get() and self.is_episode_var.get():
-            self.episode_spinbox.configure(state='normal')
-        else:
-            self.episode_spinbox.configure(state='disabled')
-    
     def add_video(self):
         """Add a video file"""
         file_path = filedialog.askopenfilename(
@@ -632,6 +728,13 @@ class ScreenshotComparisonGUI:
         # Update configuration
         self._update_config()
         
+        # Switch to Results tab immediately
+        self.notebook.select(self.results_frame)
+        
+        # Clear previous results
+        self.results_text.delete(1.0, tk.END)
+        self.results_text.insert(1.0, "Starting screenshot generation...\n\n")
+        
         # Reset stop event and mark generation as active
         self.stop_event.clear()
         self.generation_active = True
@@ -666,7 +769,8 @@ class ScreenshotComparisonGUI:
                 messagebox.showwarning("Warning", "Source vs Encode mode requires at least one encode video.")
                 return False
         
-        if self.upload_var.get() and not self.show_name_var.get().strip():
+        # Check upload settings from config instead of UI variables
+        if self.config.get('upload_to_slowpics', False) and not self.config.get('show_name', '').strip():
             messagebox.showwarning("Warning", "Show/Movie name is required for slow.pics upload.")
             return False
         
@@ -674,38 +778,8 @@ class ScreenshotComparisonGUI:
     
     def _update_config(self):
         """Update configuration from UI"""
+        # Only update comparison type here - other settings are handled by the settings dialog
         self.config['comparison_type'] = self.comparison_var.get()
-        
-        if self.frame_method_var.get() == 'interval':
-            self.config['frame_interval'] = self.interval_var.get()
-            self.config['custom_frames'] = None
-        else:
-            try:
-                frames_text = self.custom_frames_var.get().strip()
-                if frames_text:
-                    self.config['custom_frames'] = [int(f.strip()) for f in frames_text.split(',') if f.strip()]
-                    self.config['frame_interval'] = None
-                else:
-                    raise ValueError("No frames specified")
-            except ValueError:
-                messagebox.showwarning("Warning", "Invalid custom frames. Using default interval.")
-                self.config['frame_interval'] = 150
-                self.config['custom_frames'] = None
-        
-        self.config['upload_to_slowpics'] = self.upload_var.get()
-        self.config['show_name'] = self.show_name_var.get().strip()
-        self.config['clear_before_generation'] = self.clear_before_var.get()
-        self.config['clear_after_upload'] = self.clear_after_upload_var.get()
-        
-        if self.is_series_var.get():
-            self.config['season_number'] = f"S{self.season_var.get():02d}"
-            if self.is_episode_var.get():
-                self.config['episode_number'] = f"E{self.episode_var.get():02d}"
-            else:
-                self.config['episode_number'] = ""
-        else:
-            self.config['season_number'] = ""
-            self.config['episode_number'] = ""
     
     def _generation_worker(self):
         """Worker thread for screenshot generation"""
@@ -1085,10 +1159,18 @@ class ScreenshotComparisonGUI:
                 "No screenshots found in Screenshots folder.")
             return
         
-        if not self.show_name_var.get().strip():
+        # Check if show name is set in config
+        if not self.config.get('show_name', '').strip():
             messagebox.showwarning("Warning", 
-                "Please enter a show/movie name in the Settings tab first.")
+                "Please enter a show/movie name in Settings first.")
             return
+        
+        # Switch to Results tab immediately
+        self.notebook.select(self.results_frame)
+        
+        # Clear previous results and show upload status
+        self.results_text.delete(1.0, tk.END)
+        self.results_text.insert(1.0, "Starting upload to slow.pics...\n\n")
         
         # Start upload process
         self.status_label.config(text="Uploading...")
@@ -1137,9 +1219,9 @@ class ScreenshotComparisonGUI:
             self.root.after(0, lambda: self.status_label.config(text="Uploading to slow.pics..."))
             
             # Update configuration for upload
-            show_name = self.show_name_var.get().strip()
-            season_number = f"S{self.season_var.get():02d}" if self.is_series_var.get() else ""
-            episode_number = f"E{self.episode_var.get():02d}" if self.is_series_var.get() and self.is_episode_var.get() else ""
+            show_name = self.config.get('show_name', '').strip()
+            season_number = self.config.get('season_number', '')
+            episode_number = self.config.get('episode_number', '')
             
             comparison_url = upload_to_slowpics({
                 'show_name': show_name,
@@ -1240,7 +1322,7 @@ class ScreenshotComparisonGUI:
         if not DND_AVAILABLE:
             # Update label to indicate drag and drop is not available
             self.drop_label.config(
-                text="📁 Click 'Add Video' button to add video files\n" +
+                text="📁 Click here to add video files\n" +
                      "Supported formats: MP4, MKV, AVI, MOV, WMV, FLV, WEBM, M4V\n" +
                      "(Drag and drop not available - install tkinterdnd2 for this feature)",
                 fg='#999999'
@@ -1266,7 +1348,7 @@ class ScreenshotComparisonGUI:
             print(f"Warning: Could not set up drag and drop: {e}")
             # Update label to indicate drag and drop failed
             self.drop_label.config(
-                text="📁 Click 'Add Video' button to add video files\n" +
+                text="📁 Click here to add video files\n" +
                      "Supported formats: MP4, MKV, AVI, MOV, WMV, FLV, WEBM, M4V\n" +
                      "(Drag and drop initialization failed)",
                 fg='#999999'
@@ -1296,7 +1378,7 @@ class ScreenshotComparisonGUI:
             self.drag_active = False
             # Restore normal appearance
             self.drop_label.config(
-                text="📁 Drag and drop video files here to add them\n" +
+                text="📁 Click here or drag and drop video files\n" +
                      "Supported formats: MP4, MKV, AVI, MOV, WMV, FLV, WEBM, M4V",
                 bg='#f0f0f0',
                 fg='#666666'
