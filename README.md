@@ -123,14 +123,6 @@ python comp-cli.py *.mkv -cn "My Collection" -u             # Compare all videos
 python comp-cli.py source.mkv encode.mkv -f 1000,5000,9000 # Custom frames
 ```
 
-#### 🎯 Key Features
-- **Positional video arguments** - Just list your videos, no complex syntax
-- **Individual video processing** - Crop, resize, and configure each video independently  
-- **Frame selection** - Choose specific frames or intervals
-- **Trim and padding** - Process specific video segments
-- **Upload integration** - Direct slow.pics upload with collection naming
-- **Upload-only mode** - Process existing screenshots without regeneration
-
 #### 📝 Complete Syntax Reference
 
 **Basic Usage:**
@@ -160,49 +152,12 @@ python comp-cli.py video1 video2 [video3...] [options]
 --order    "encode,resize,crop;crop,resize" # Processing order per video
 ```
 
-#### 💡 Real-World Examples
-
-**Compare Netflix vs Blu-ray:**
-```bash
-python comp-cli.py netflix.mkv bluray.mkv \
-  --crop "0,138,1920,942;0,0,1920,1080" \
-  --resize "1920x1080;1920x1080" \
-  --frames 1000,5000,9000 \
-  --collection-name "Show S01E01 Netflix vs Blu-ray" \
-  --upload
-```
-
-**Batch process entire season:**
-```bash
-python comp-cli.py source_s01e*.mkv \
-  --interval 300 \
-  --resize "1920x1080" \
-  --collection-name "Show Season 1 Source Quality" \
-  --upload
-```
-
-**Compare your encode vs source:**
-```bash
-python comp-cli.py source.mkv my_encode.mkv \
-  --crop "0,20,1920,1060;0,20,1920,1060" \
-  --frames 2000,6000,10000 \
-  --trim "00:02:00;00:02:00" \
-  --collection-name "My Encode vs Source" \
-  --upload
-```
-
 **Upload existing screenshots:**
 ```bash
 python comp-cli.py --upload-only \
   --collection-name "Previous Comparison" \
   --screenshot-dir "old_screenshots"
 ```
-
-#### 🎛️ Processing Presets Support
-The CLI supports the same crop presets as the GUI:
-- **Streaming**: Remove platform logos and letterboxing
-- **Anime**: Handle various aspect ratios and dirty lines  
-- **Custom**: Precise coordinate control
 
 #### ⚠️ Important Notes
 - **Individual processing**: Use semicolon `;` to separate values for multiple videos
