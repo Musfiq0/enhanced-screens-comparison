@@ -4,8 +4,8 @@
 
 [![Windows](https://img.shields.io/badge/Platform-Windows-blue?logo=windows)](https://github.com) 
 [![Python](https://img.shields.io/badge/Python-3.8+-green?logo=python)](https://python.org) 
-[![GUI](https://img.shields.io/badge/Interface-GUI%20%2B%20CLI-orange)](https://github.com) 
-[![Quality](https://img.shields.io/badge/Quality-Actually%20Good-brightgreen)](https://github.com)
+[![Interface](https://img.shields.io/badge/Interface-GUI%20%2B%20CLI%20%2B%20Pro--CLI-orange)](https://github.com) 
+[![Version](https://img.shields.io/badge/Version-3.0-brightgreen)](https://github.com)
 
 > Ever wanted to compare multiple videos but got tired of writing VapourSynth/AviSynth scripts for each comparison? This tool automates the entire process and even uploads the results to slow.pics automatically! 🚀
 
@@ -17,8 +17,9 @@
 - 🎨 **Smart cropping** (bye bye black bars!)  
 - 📐 **Intelligent resizing** (4K → 1080p without breaking aspect ratios)
 - 🌐 **Auto-upload to slow.pics** (and opens in your browser like magic)
-- 🎭 **GUI for normies, Console for nerds** 
+- 🎭 **GUI for normies, Console for nerds, CLI for pros** 🆕
 - ⚡ **Actually fast** (when you have good hardware)
+- 🚀 **Professional automation** with advanced CLI (v3.0)
 
 📚 **Want the full nerdy details?** Check out our [comprehensive wiki](https://github.com/Musfiq0/enhanced-screens-comparison/wiki) for all the juicy technical stuff, advanced configs, and step-by-step guides that'll make you a comparison wizard! 🧙‍♂️✨
 
@@ -28,7 +29,8 @@
 ```bash
 # Double-click START_HERE.bat and choose your option:
 # 1. GUI Application (Point and click)
-# 2. CLI/Console Version (Command line)
+# 2. Interactive CLI/Console (Guided prompts)
+# 3. Advanced CLI (Professional automation) 🆕
 # 4. Build Windows Executable
 
 START_HERE.bat
@@ -40,12 +42,14 @@ git clone https://github.com/Musfiq0/enhanced-screens-comparison.git
 cd enhanced-screens-comparison
 pip install -r requirements.txt
 
-# GUI Mode
+# GUI Mode (Visual interface)
 python gui_app.py
 
-# CLI Mode  
+# Interactive CLI Mode (Guided prompts)
 python comparev2.py
-```
+
+# Advanced CLI Mode (Professional automation) 🆕
+python comp-cli.py --help
 
 ### 🔨 I want to build my own because reasons
 ```bash
@@ -75,6 +79,7 @@ python build_exe.py
 5. **Hit Generate** → Watch the magic happen ✨
 6. **Get results** → Screenshots saved locally + auto-uploaded to slow.pics with proper naming
 
+
 ### ⌨️ Console Mode (For the command line warriors)
 
 ```bash
@@ -103,6 +108,113 @@ python comparev2.py --version    # Show version information
 [📊] Screenshot generation complete:
 [✅] Successfully generated: 20/20
 ```
+
+### 🚀 Advanced CLI Mode (v3.0 - Professional Automation) 
+
+**Perfect for batch processing, automation, and power users!**
+
+```bash
+# Professional CLI with full feature support
+python comp-cli.py [videos] [options]
+
+# Quick examples:
+python comp-cli.py video1.mkv video2.mp4                    # Basic comparison
+python comp-cli.py *.mkv -cn "My Collection" -u             # Compare all videos and upload
+python comp-cli.py source.mkv encode.mkv -f 1000,5000,9000 # Custom frames
+```
+
+#### 🎯 Key Features
+- **Positional video arguments** - Just list your videos, no complex syntax
+- **Individual video processing** - Crop, resize, and configure each video independently  
+- **Frame selection** - Choose specific frames or intervals
+- **Trim and padding** - Process specific video segments
+- **Upload integration** - Direct slow.pics upload with collection naming
+- **Upload-only mode** - Process existing screenshots without regeneration
+
+#### 📝 Complete Syntax Reference
+
+**Basic Usage:**
+```bash
+python comp-cli.py video1 video2 [video3...] [options]
+```
+
+**Global Options:**
+```bash
+-f, --frames          Frame numbers (e.g., 1000,5000,9000)
+-i, --interval        Frame interval in seconds (e.g., 300 for every 5 minutes)
+-s, --screenshot-dir  Directory for screenshots (default: Screenshots)
+-o, --output-dir      Output directory for comparisons
+-cn, --collection-name Collection name for slow.pics upload (required for upload)
+-u, --upload          Upload to slow.pics after generation
+-uo, --upload-only    Upload existing screenshots (skip generation)
+-nc, --no-collage     Generate individual screenshots only (no comparison collage)
+-h, --help           Show detailed help and examples
+```
+
+**Individual Video Processing:**
+```bash
+--crop     "x1,y1,x2,y2;x1,y1,x2,y2"    # Crop coordinates per video
+--resize   "1920x1080;1280x720"          # Target resolution per video  
+--trim     "00:10:00;00:05:30"           # Start time per video
+--padding  "5;10"                        # Padding seconds per video
+--order    "encode,resize,crop;crop,resize" # Processing order per video
+```
+
+#### 💡 Real-World Examples
+
+**Compare Netflix vs Blu-ray:**
+```bash
+python comp-cli.py netflix.mkv bluray.mkv \
+  --crop "0,138,1920,942;0,0,1920,1080" \
+  --resize "1920x1080;1920x1080" \
+  --frames 1000,5000,9000 \
+  --collection-name "Show S01E01 Netflix vs Blu-ray" \
+  --upload
+```
+
+**Batch process entire season:**
+```bash
+python comp-cli.py source_s01e*.mkv \
+  --interval 300 \
+  --resize "1920x1080" \
+  --collection-name "Show Season 1 Source Quality" \
+  --upload
+```
+
+**Compare your encode vs source:**
+```bash
+python comp-cli.py source.mkv my_encode.mkv \
+  --crop "0,20,1920,1060;0,20,1920,1060" \
+  --frames 2000,6000,10000 \
+  --trim "00:02:00;00:02:00" \
+  --collection-name "My Encode vs Source" \
+  --upload
+```
+
+**Upload existing screenshots:**
+```bash
+python comp-cli.py --upload-only \
+  --collection-name "Previous Comparison" \
+  --screenshot-dir "old_screenshots"
+```
+
+#### 🎛️ Processing Presets Support
+The CLI supports the same crop presets as the GUI:
+- **Streaming**: Remove platform logos and letterboxing
+- **Anime**: Handle various aspect ratios and dirty lines  
+- **Custom**: Precise coordinate control
+
+#### ⚠️ Important Notes
+- **Individual processing**: Use semicolon `;` to separate values for multiple videos
+- **Collection name**: Required for uploads, should describe your comparison
+- **Frame selection**: Either use `--frames` OR `--interval`, not both
+- **Upload-only**: Skips generation, uploads existing screenshots from specified directory
+- **Error handling**: Comprehensive validation with clear error messages
+
+#### 🔄 Integration with GUI/Console
+- **Same processing engine**: Uses VapourSynth backend like GUI/Console modes
+- **Compatible output**: Screenshots work with all modes  
+- **Shared configuration**: Uses same crop presets and processing logic
 
 ## 🛠️ Technical Stuff (For the Curious)
 
@@ -172,19 +284,25 @@ python -c "import PyInstaller; print('Build tools ready')"
 
 ## 🆕 Recent Updates
 
-### Version 2.1 Features  
+### Version 3.0 - Advanced CLI Release 🚀
+- ✅ **🆕 Professional CLI Interface** - Complete rewrite of command-line interface for automation
+- ✅ **Individual Video Processing** - Configure crop, resize, and processing per video
+- ✅ **Flexible Frame Selection** - Custom frame lists or interval-based selection  
+- ✅ **Upload Integration** - Direct slow.pics upload with collection naming
+- ✅ **Upload-Only Mode** - Process existing screenshots without regeneration
+- ✅ **Robust Argument Parsing** - Professional argparse-based CLI with comprehensive validation
+- ✅ **VapourSynth Integration** - All video processing routed through VapourSynth backend
+- ✅ **Batch Processing Support** - Handle multiple videos with wildcard patterns
+- ✅ **Error Handling** - Clear error messages and validation for all operations
+- ✅ **Trim and Padding** - Process specific video segments with frame-accurate control
+- ✅ **Processing Order Control** - Customize crop/resize/processing order per video
+
+### Version 2.1 GUI Features  
 - ✅ **🆕 Drag & Drop Support** - Simply drag video files from Windows Explorer into the GUI
-- ✅ **Persistent Drop Zone** - Drag area remains visible for adding multiple videos easily
-- ✅ **Smart File Validation** - Automatic detection of valid video formats with helpful error messages
-- ✅ **Auto Configuration** - Configuration dialog opens automatically for each dropped video
-- ✅ **Multiple File Handling** - Drop several videos at once with individual configuration
-- ✅ **Visual Feedback** - Dynamic drop zone appearance with clear instructions and status
-- ✅ **Robust File Parsing** - Handles various path formats and edge cases from different applications
 - ✅ **Episode Support for slow.pics uploads** - Choose between single episode and season pack
 - ✅ **Smart Collection Naming** - Automatic "ShowName S01E01 source vs encode" format
 - ✅ **File Management Options** - Auto-clear screenshots before generation or after upload
 - ✅ **Dynamic Processing Display** - Console shows actual processing steps instead of static text
-- ✅ **Custom Frames Fallback** - Uses default frames (100,500,1000) instead of switching to interval
 
 ## ⚖️ License
 

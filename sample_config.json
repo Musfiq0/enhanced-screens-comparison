@@ -1,0 +1,50 @@
+{
+  "description": "Sample configuration for Enhanced Screenshot Comparison Tool - Advanced CLI",
+  "version": "2.0",
+  "comparison_type": "multiple_sources",
+  "videos": [
+    {
+      "path": "source.mkv",
+      "name": "Source",
+      "trim_start": 0,
+      "trim_end": 0,
+      "pad_start": 0,
+      "pad_end": 0,
+      "crop": null,
+      "is_source": true
+    },
+    {
+      "path": "encode.mkv",
+      "name": "Encode",
+      "trim_start": 0,
+      "trim_end": 0,
+      "pad_start": 0,
+      "pad_end": 0,
+      "crop": null,
+      "is_source": false
+    }
+  ],
+  "frames": [1000, 5000, 10000, 15000],
+  "resize_config": {
+    "resize_method": "common",
+    "common_resolution": {
+      "width": 1920,
+      "height": 1080
+    }
+  },
+  "upload_to_slowpics": true,
+  "collection_name": "Sample Comparison",
+  "collection_type": "single",
+  "no_browser": false,
+  "quiet": false,
+  "verbose": false,
+  "_comments": {
+    "description": "This is a sample configuration file for the Advanced CLI.",
+    "usage": "python cli_advanced.py --config sample_config.json",
+    "crop_formats": "Crop values should be [left, top, right, bottom] in pixels, or null for no crop",
+    "available_crop_presets": ["2.40:1", "2.35:1", "1.85:1", "netflix", "amazon", "disney", "hulu", "streaming"],
+    "available_resolutions": ["480p", "720p", "1080p", "1440p", "4k"],
+    "frame_selection": "Can be specific frame numbers or use interval-based selection",
+    "comparison_types": ["multiple_sources", "source_encode"]
+  }
+}

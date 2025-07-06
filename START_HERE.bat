@@ -55,36 +55,38 @@ echo.
 echo  QUICK ACTIONS:
 echo     1. Run GUI Application (Recommended)
 echo     2. Run Interactive Console Version
-echo     3. Setup Development Environment
+echo     3. Run Advanced CLI (Power Users) - NEW!
+echo     4. Setup Development Environment
 echo.
 echo  BUILD ACTIONS:
-echo     4. Build Windows Executable (.exe)
-echo     5. Create Complete Distribution Package
-echo     6. Build with Advanced Options
+echo     5. Build Windows Executable (.exe)
+echo     6. Create Complete Distribution Package
+echo     7. Build with Advanced Options
 echo.
 echo  MAINTENANCE:
-echo     7. Install/Update Dependencies
-echo     8. Check Application Icon
-echo     9. Clean Build Files
-echo    10. Show Project Information
+echo     8. Install/Update Dependencies
+echo     9. Check Application Icon
+echo    10. Clean Build Files
+echo    11. Show Project Information
 echo.
 echo     0. Exit
 echo.
-set /p choice="Enter your choice (0-10): "
+set /p choice="Enter your choice (0-11): "
 
 if "%choice%"=="1" goto RUN_GUI
 if "%choice%"=="2" goto RUN_CLI
-if "%choice%"=="3" goto SETUP_DEV
-if "%choice%"=="4" goto BUILD_EXE
-if "%choice%"=="5" goto BUILD_DIST
-if "%choice%"=="6" goto BUILD_ADVANCED
-if "%choice%"=="7" goto INSTALL_DEPS
-if "%choice%"=="8" goto CREATE_ICON
-if "%choice%"=="9" goto CLEAN_BUILD
-if "%choice%"=="10" goto SHOW_INFO
+if "%choice%"=="3" goto RUN_ADVANCED_CLI
+if "%choice%"=="4" goto SETUP_DEV
+if "%choice%"=="5" goto BUILD_EXE
+if "%choice%"=="6" goto BUILD_DIST
+if "%choice%"=="7" goto BUILD_ADVANCED
+if "%choice%"=="8" goto INSTALL_DEPS
+if "%choice%"=="9" goto CREATE_ICON
+if "%choice%"=="10" goto CLEAN_BUILD
+if "%choice%"=="11" goto SHOW_INFO
 if "%choice%"=="0" goto EXIT
 
-echo [X] Invalid choice. Please select 0-10.
+echo [X] Invalid choice. Please select 0-11.
 timeout /t 2 >nul
 goto MAIN_MENU
 
@@ -149,6 +151,55 @@ python comparev2.py
 
 echo.
 echo [DONE] Console application closed.
+pause
+goto MAIN_MENU
+
+:RUN_ADVANCED_CLI
+cls
+echo  +======================================================================+
+echo  ^|                         Advanced CLI Interface                       ^|
+echo  +======================================================================+
+echo.
+echo ^> Starting Enhanced Screenshot Comparison Tool - Advanced CLI...
+echo.
+
+:: Quick dependency check
+echo [INFO] Checking core dependencies...
+python -c "import cv2, PIL, numpy, requests" 2>nul
+if errorlevel 1 (
+    echo [WARN] Some dependencies missing. Installing...
+    pip install --quiet pillow opencv-python numpy requests requests-toolbelt colorama
+)
+
+:: Check if advanced CLI exists
+if not exist "comp-cli.py" (
+    echo [ERROR] Advanced CLI comp-cli.py not found!
+    echo [INFO] Please ensure all files are properly installed.
+    pause
+    goto MAIN_MENU
+)
+
+echo [OK] Dependencies check completed
+echo.
+echo [START] Launching Advanced CLI...
+echo [INFO] Professional command-line interface with full automation support
+echo [HELP] For help: python comp-cli.py --help
+echo [PRESETS] For presets: python comp-cli.py --list-presets
+echo [DEMO] For system info: python comp-cli.py --demo
+echo.
+echo [EXAMPLES] Quick examples:
+echo   python comp-cli.py --videos source.mkv encode.mkv
+echo   python comp-cli.py --mode source-encode --source original.mkv --encode compressed.mkv
+echo   python comp-cli.py --config my_workflow.json
+echo.
+
+:: Show help by default
+python comp-cli.py --help
+
+echo.
+echo [READY] Advanced CLI is ready for commands!
+echo [TIP] You can now run any comp-cli.py commands in this window.
+echo [EXIT] Press any key to return to main menu...
 pause
 goto MAIN_MENU
 
@@ -421,6 +472,7 @@ echo.
 echo [FEATURES]
 echo   - GUI Application with modern Windows interface
 echo   - CLI/Console tool for automation and scripting
+echo   - Advanced CLI with full argument support (comp-cli.py)
 echo   - Multiple video processing backends (VapourSynth, OpenCV, PIL)
 echo   - Source vs Encode and Multiple Sources comparison modes
 echo   - Automatic slow.pics upload integration
@@ -430,15 +482,17 @@ echo   - Professional executable building
 echo.
 echo [FILES]
 echo   - gui_app.py: GUI application
-echo   - comparev2.py: CLI comparison tool
+echo   - comparev2.py: Interactive CLI comparison tool
+echo   - comp-cli.py: Advanced CLI with full argument support
 echo   - requirements.txt: All dependencies
 echo   - build_exe.py: Executable builder
 echo   - README.md: Complete documentation
 echo.
 echo [USAGE]
 echo   - GUI Mode: Choose option 1 from main menu
-echo   - CLI Mode: Choose option 2 from main menu
-echo   - Build EXE: Choose option 4 from main menu
+echo   - Interactive CLI Mode: Choose option 2 from main menu
+echo   - Advanced CLI Mode: Choose option 3 from main menu
+echo   - Build EXE: Choose option 5 from main menu
 echo [DOCS] See README.md for complete documentation
 echo.
 pause
@@ -456,6 +510,7 @@ echo [TIPS] Quick Tips:
 echo    * Your built executable will be in the 'dist' folder
 echo    * Use ScreenshotComparison.exe - no installation needed
 echo    * Check 'distribution' folder for complete packages
+echo    * Use comp-cli.py for professional automation workflows
 echo.
 echo [HELP] For help and updates, check the README files
 echo.
