@@ -1,0 +1,71 @@
+# Enhanced Screenshot Comparison Tool - Docker Ignore
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Git
+.git/
+.gitignore
+
+# Build artifacts
+build/
+dist/
+*.spec
+*.exe
+*.app/
+*.AppImage
+
+# Screenshots (will be mounted as volume)
+Screenshots/
+
+# Documentation (reduce image size)
+enhanced-screens-comparison.wiki/
+*.md
+LICENSE
+
+# Development files
+validate_cross_platform.py
+setup.py
+Makefile
+*.bat
+*.sh
+
+# Platform-specific build scripts
+build_*.py
+
+# Config files
+sample_config.json
+version_info.txt
+
+# Large media files
+*.mp4
+*.mkv
+*.avi
+*.mov
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak

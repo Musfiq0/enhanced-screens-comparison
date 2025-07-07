@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  screenshot-comparison:
+    build: .
+    image: enhanced-screenshot-comparison:latest
+    container_name: screenshot-comparison-tool
+    
+    # For GUI applications with X11 forwarding (Linux)
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+    
+    volumes:
+      # Mount current directory for input videos
+      - ./:/workspace
+      # Mount Screenshots directory for output
+      - ./Screenshots:/app/Screenshots
+      # X11 socket for GUI (Linux only)
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    
+    # Network mode for X11 (Linux)
+    network_mode: host
+    
+    # Keep container running
+    tty: true
+    stdin_open: true
+    
+    # Override default command
+    command: /bin/bash
+
+  # Alternative service for CLI-only usage (more portable)
+  screenshot-comparison-cli:
+    build: .
+    image: enhanced-screenshot-comparison:latest
+    container_name: screenshot-comparison-cli
+    
+    volumes:
+      # Mount current directory for input videos
+      - ./:/workspace
+      # Mount Screenshots directory for output
+      - ./Screenshots:/app/Screenshots
+    
+    # Override default command for interactive CLI
+    command: python comparev2.py
+    
+    # Keep container running for interactive use
+    tty: true
+    stdin_open: true
+
+  # Service for batch processing
+  screenshot-comparison-batch:
+    build: .
+    image: enhanced-screenshot-comparison:latest
+    container_name: screenshot-comparison-batch
+    
+    volumes:
+      - ./:/workspace
+      - ./Screenshots:/app/Screenshots
+    
+    # Example batch command - modify as needed
+    command: python comp-cli.py /workspace/*.mkv -cn "Batch Comparison" -i 300
+    
+    # Remove container after completion
+    restart: "no"
+
+# Named volumes for persistent data
+volumes:
+  screenshots:
+    driver: local
+
+# Networks (if needed)
+networks:
+  default:
+    driver: bridge
