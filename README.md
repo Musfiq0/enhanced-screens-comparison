@@ -17,10 +17,6 @@
 - 🎨 **Smart cropping** (bye bye black bars!)  
 - 📐 **Intelligent resizing** (4K → 1080p without breaking aspect ratios)
 - 🌐 **Auto-upload to slow.pics** (and opens in your browser like magic)
-- 🎭 **GUI for normies, Console for nerds, CLI for pros** 🆕
-- 🎨 **Modern redesigned interface** with unified control panel and visual icons (v3.2) 🆕
-- ⚡ **Actually fast** (when you have good hardware)
-- 🚀 **Professional automation** with advanced CLI (v3.0)
 
 📚 **Want the full nerdy details?** Check out our [comprehensive wiki](https://github.com/Musfiq0/enhanced-screens-comparison/wiki) for all the juicy technical stuff, advanced configs, and step-by-step guides that'll make you a comparison wizard! 🧙‍♂️✨
 
@@ -185,17 +181,6 @@ python comp-cli.py -uo \
 - **Compatible output**: Screenshots work with all modes  
 - **Shared configuration**: Uses same crop presets and processing logic
 
-## 🛠️ Technical Stuff (For the Curious)
-
-### Processing Backends
-- **VapourSynth**: The good stuff (optional, but recommended for quality)
-- **OpenCV**: Reliable workhorse (included)
-- **PIL**: Basic but gets the job done (fallback)
-
-### What it Supports
-- **Input**: Pretty much any video format (MP4, MKV, AVI, etc.)
-- **Output**: High-quality PNG screenshots  
-- **Platforms**: Windows 10/11 (sorry Linux users, PRs welcome 😅)
 
 
 ## 🤝 Contributing
@@ -245,12 +230,6 @@ pip install -r requirements.txt
 python -c "import PyInstaller; print('Build tools ready')"
 ```
 
-### Performance Tips
-- **For 4K videos**: Ensure 8GB+ RAM available
-- **For slow processing**: Close other applications
-- **For large batches**: Use CLI mode for better performance
-- **For best quality**: Install VapourSynth system-wide
-
 ## 🆕 Recent Updates
 
 ### Version 3.2 - GUI Redesign & UX Improvements 🎨
@@ -271,19 +250,6 @@ python -c "import PyInstaller; print('Build tools ready')"
 - ✅ **Professional Design** - Modern layout with proper spacing, visual hierarchy, and clean aesthetics
 - ✅ **Responsive Layout** - Optimal control arrangement that scales with window size
 - ✅ **Removed Clutter** - Eliminated Add Video button, moved settings out of tabs for cleaner interface
-
-### Version 3.0 - Advanced CLI Release 🚀
-- ✅ **🆕 Professional CLI Interface** - Complete rewrite of command-line interface for automation
-- ✅ **Individual Video Processing** - Configure crop, resize, and processing per video
-- ✅ **Flexible Frame Selection** - Custom frame lists or interval-based selection  
-- ✅ **Upload Integration** - Direct slow.pics upload with collection naming
-- ✅ **Upload-Only Mode** - Process existing screenshots without regeneration
-- ✅ **Robust Argument Parsing** - Professional argparse-based CLI with comprehensive validation
-- ✅ **VapourSynth Integration** - All video processing routed through VapourSynth backend
-- ✅ **Batch Processing Support** - Handle multiple videos with wildcard patterns
-- ✅ **Error Handling** - Clear error messages and validation for all operations
-- ✅ **Trim and Padding** - Process specific video segments with frame-accurate control
-- ✅ **Processing Order Control** - Customize crop/resize/processing order per video
 
 ## ⚖️ License
 
