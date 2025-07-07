@@ -1,11 +1,12 @@
 # 🎬 Enhanced Screenshot Comparison Tool
 
 *Because comparing video quality shouldn't be a pain in the ass* 😤
-
-[![Windows](https://img.shields.io/badge/Platform-Windows-blue?logo=windows)](https://github.com) 
+[![Cross Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Docker-blue?logo=docker)](https://github.com/Musfiq0/enhanced-screens-comparison) 
 [![Python](https://img.shields.io/badge/Python-3.8+-green?logo=python)](https://python.org) 
-[![Interface](https://img.shields.io/badge/Interface-GUI%20%2B%20CLI%20%2B%20Pro--CLI-orange)](https://github.com) 
-[![Version](https://img.shields.io/badge/Version-3.2-brightgreen)](https://github.com)
+[![Interface](https://img.shields.io/badge/Interface-GUI%20%2B%20CLI%20%2B%20Pro--CLI-orange)](https://github.com/Musfiq0/enhanced-screens-comparison) 
+[![Version](https://img.shields.io/badge/Version-3.3-brightgreen)](https://github.com/Musfiq0/enhanced-screens-comparison)
+[![License](https://img.shields.io/badge/License-MIT-purple)](https://github.com/Musfiq0/enhanced-screens-comparison/blob/main/LICENSE)
+[![VapourSynth](https://img.shields.io/badge/Backend-VapourSynth-red?logo=v)](https://vapoursynth.com)
 
 > Ever wanted to compare multiple videos but got tired of writing VapourSynth/AviSynth scripts for each comparison? This tool automates the entire process and even uploads the results to slow.pics automatically! 🚀
 
