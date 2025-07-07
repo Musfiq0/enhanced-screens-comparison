@@ -4,7 +4,7 @@
 
 [![Cross Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Docker-blue?logo=docker)](https://github.com/Musfiq0/enhanced-screens-comparison) 
 [![Python](https://img.shields.io/badge/Python-3.8+-green?logo=python)](https://python.org) 
-[![Interface](https://img.shields.io/badge/Interface-GUI%20%2B%20CLI%20%2B%20Pro--CLI-orange)](https://github.com/Musfiq0/enhanced-screens-comparison) 
+[![Interface](https://img.shields.io/badge/Interface-GUI%20%2B%20Console%20%2B%20Advanced--CLI-orange)](https://github.com/Musfiq0/enhanced-screens-comparison) 
 [![Version](https://img.shields.io/badge/Version-3.3-brightgreen)](https://github.com/Musfiq0/enhanced-screens-comparison)
 
 
