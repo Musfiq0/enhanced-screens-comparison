@@ -11,6 +11,7 @@ Version: 2.0 - Dynamic Fallback Edition
 import sys
 import os
 import requests
+import requests.exceptions
 import json
 import time
 import uuid
@@ -474,13 +475,26 @@ def get_upload_only_config():
                 # Extract frame numbers from filenames
                 for png_file in png_files:
                     try:
-                        # Assuming format: SourceName_000000_000000.png
-                        parts = png_file.split('_')
+                        # Handle multiple possible formats:
+                        # Format 1: SourceName_000000.png (your format)
+                        # Format 2: SourceName_000000_000000.png (alternative format)
+                        parts = png_file.replace('.png', '').split('_')
                         if len(parts) >= 2:
-                            frame_num = int(parts[1])
+                            # Try to get the frame number from the last numeric part
+                            frame_part = parts[-1]  # Get the last part after underscore
+                            frame_num = int(frame_part)
                             all_frames.add(frame_num)
                     except (ValueError, IndexError):
-                        continue
+                        # If parsing fails, try alternative approach
+                        try:
+                            # Look for 6-digit numbers in the filename
+                            import re
+                            numbers = re.findall(r'\d{6}', png_file)
+                            if numbers:
+                                frame_num = int(numbers[-1])  # Use the last 6-digit number
+                                all_frames.add(frame_num)
+                        except (ValueError, IndexError):
+                            continue
     
     frames = sorted(list(all_frames))
     
@@ -1736,8 +1750,99 @@ def apply_processing_crop_first(clip, trim_start=0, trim_end=0, pad_start=0, pad
 def upload_to_slowpics(config, frames, processed_videos):
     """
     Upload screenshots to slow.pics using working logic from comp.py.
+    First tries to upload everything in one comparison, then falls back to 3-5 chunks if needed.
     """
     print_header("UPLOADING TO SLOW.PICS")
+    
+    total_images = len(frames) * len(processed_videos)
+    colored_print(f"[INFO] Total images to upload: {total_images}", Colors.CYAN, bold=True)
+    
+    # First attempt: Try uploading everything in one comparison
+    colored_print(f"[ATTEMPT] Trying to upload all {total_images} images in a single comparison...", Colors.YELLOW, bold=True)
+    
+    try:
+        result = _upload_single_comparison(config, frames, processed_videos, "")
+        if result:
+            colored_print(f"[SUCCESS] All images uploaded successfully in one comparison!", Colors.GREEN, bold=True)
+            return result
+    except Exception as e:
+        error_msg = str(e)
+        colored_print(f"[WARN] Single comparison upload failed: {error_msg}", Colors.YELLOW, bold=True)
+        
+        # Check if it's worth retrying with chunks
+        if "500" in error_msg or "timeout" in error_msg.lower() or "too large" in error_msg.lower():
+            colored_print(f"[INFO] Will try splitting into smaller chunks...", Colors.CYAN)
+        else:
+            # If it's a different error (like auth, network, etc), don't retry
+            colored_print(f"[ERROR] Upload failed with non-retryable error.", Colors.RED, bold=True)
+            return None
+    
+    # Fallback: Split into 3-5 large chunks
+    colored_print(f"[FALLBACK] Splitting into 3-5 large comparisons...", Colors.MAGENTA, bold=True)
+    
+    # Calculate chunk size to get 3-5 comparisons
+    target_comparisons = min(5, max(3, total_images // 400))  # Aim for ~400 images per comparison, but keep it 3-5
+    frames_per_chunk = len(frames) // target_comparisons
+    if frames_per_chunk < 1:
+        frames_per_chunk = 1
+    
+    # Split frames into chunks
+    frame_chunks = []
+    for i in range(0, len(frames), frames_per_chunk):
+        chunk = frames[i:i + frames_per_chunk]
+        frame_chunks.append(chunk)
+    
+    # If we ended up with more than 5 chunks, combine the last ones
+    if len(frame_chunks) > 5:
+        # Combine the last chunks
+        while len(frame_chunks) > 5:
+            last_chunk = frame_chunks.pop()
+            frame_chunks[-1].extend(last_chunk)
+    
+    colored_print(f"[INFO] Will create {len(frame_chunks)} separate comparisons", Colors.CYAN, bold=True)
+    for i, chunk in enumerate(frame_chunks):
+        chunk_images = len(chunk) * len(processed_videos)
+        colored_print(f"   Part {i+1}: {len(chunk)} frames ({chunk_images} images)", Colors.WHITE)
+    
+    # Upload each chunk as a separate comparison
+    all_urls = []
+    for chunk_index, frame_chunk in enumerate(frame_chunks):
+        colored_print(f"\n[CHUNK] Uploading part {chunk_index + 1}/{len(frame_chunks)} ({len(frame_chunk)} frames)", Colors.MAGENTA, bold=True)
+        
+        # Create modified config for this chunk
+        chunk_config = config.copy()
+        chunk_title_suffix = f" (Part {chunk_index + 1}/{len(frame_chunks)})"
+        
+        # Upload this chunk
+        chunk_url = _upload_single_comparison(chunk_config, frame_chunk, processed_videos, chunk_title_suffix)
+        if chunk_url:
+            all_urls.append(chunk_url)
+            colored_print(f"[OK] Part {chunk_index + 1} uploaded: {chunk_url}", Colors.GREEN)
+        else:
+            colored_print(f"[ERROR] Part {chunk_index + 1} failed", Colors.RED)
+            return None
+    
+    # Summary
+    colored_print(f"\n[COMPLETE] All {len(frame_chunks)} parts uploaded successfully!", Colors.GREEN, bold=True)
+    for i, url in enumerate(all_urls):
+        colored_print(f"   Part {i + 1}: {url}", Colors.CYAN)
+    
+    # Open the first comparison in browser
+    if all_urls:
+        try:
+            webbrowser.open(all_urls[0])
+            colored_print("[START] Opening first comparison in your default browser...", Colors.GREEN, bold=True)
+        except Exception as e:
+            colored_print(f"[WARN] Could not open browser: {e}", Colors.YELLOW)
+    
+    return all_urls[0] if all_urls else None
+
+
+def _upload_single_comparison(config, frames, processed_videos, title_suffix=""):
+    """
+    Upload a single comparison to slow.pics.
+    """
+    import time  # Import here to ensure it's available throughout the function
     
     # Generate collection name
     source_names = [video['name'] for video in processed_videos]
@@ -1752,7 +1857,30 @@ def upload_to_slowpics(config, frames, processed_videos):
         title_parts.append(season_episode)
     title_parts.append(vs_string)
     
-    collection_name = " ".join(title_parts)
+    collection_name = " ".join(title_parts) + title_suffix
+    colored_print(f"[?[NAME] Collection name: {collection_name}", Colors.CYAN, bold=True)
+
+
+def _upload_single_comparison(config, frames, processed_videos, title_suffix=""):
+    """
+    Upload a single comparison to slow.pics.
+    """
+    import time  # Import here to ensure it's available throughout the function
+    
+    # Generate collection name
+    source_names = [video['name'] for video in processed_videos]
+    vs_string = " vs ".join(source_names)
+    
+    # Build collection name with season and episode info
+    title_parts = [config['show_name']]
+    if config.get('season_number'):
+        season_episode = config['season_number']
+        if config.get('episode_number'):
+            season_episode += config['episode_number']
+        title_parts.append(season_episode)
+    title_parts.append(vs_string)
+    
+    collection_name = " ".join(title_parts) + title_suffix
     colored_print(f"[?[NAME] Collection name: {collection_name}", Colors.CYAN, bold=True)
     
     try:
@@ -1780,7 +1908,6 @@ def upload_to_slowpics(config, frames, processed_videos):
         if len(all_image_files) < expected_images:
             print(f"Warning: Expected {expected_images} images but found {len(all_image_files)}")
             # Wait a bit and check again
-            import time
             time.sleep(2)
             all_image_files = []
             for video in processed_videos:
@@ -1804,6 +1931,24 @@ def upload_to_slowpics(config, frames, processed_videos):
             'public': 'true'
         }
         
+        # Validate collection name
+        if not collection_name or len(collection_name.strip()) == 0:
+            raise Exception("Collection name cannot be empty")
+        if len(collection_name) > 200:
+            raise Exception("Collection name is too long (max 200 characters)")
+        
+        # Validate we have sources
+        if len(processed_videos) == 0:
+            raise Exception("No video sources found")
+        if len(processed_videos) > 10:
+            raise Exception("Too many sources (max 10 supported by slow.pics)")
+        
+        # Validate we have frames
+        if len(frames) == 0:
+            raise Exception("No frames to upload")
+        if len(frames) > 50:
+            colored_print(f"[WARN] Uploading {len(frames)} frames - this might take a while or fail due to size limits", Colors.YELLOW)
+        
         # Add comparison data for each frame (like comp.py)
         for x in range(0, len(frames)):
             fields[f'comparisons[{x}].name'] = str(frames[x])
@@ -1818,20 +1963,95 @@ def upload_to_slowpics(config, frames, processed_videos):
         with Session() as sess:
             # Get the initial page to establish session and get XSRF token
             colored_print("[LINK] Establishing session...", Colors.CYAN)
-            sess.get('https://slow.pics/comparison')
             
-            # Create the comparison
+            # Try to establish session with rate limit handling
+            session_attempts = 3
+            for session_attempt in range(session_attempts):
+                try:
+                    session_response = sess.get('https://slow.pics/comparison', timeout=30)
+                    
+                    if session_response.status_code == 200:
+                        break
+                    elif session_response.status_code == 429:
+                        if session_attempt < session_attempts - 1:
+                            wait_time = (session_attempt + 1) * 30  # 30s, 60s, 90s
+                            colored_print(f"[WARN] Rate limited. Waiting {wait_time}s before retry...", Colors.YELLOW)
+                            time.sleep(wait_time)
+                            continue
+                        else:
+                            raise Exception(f"Rate limited after {session_attempts} attempts. Status: 429")
+                    else:
+                        raise Exception(f"Failed to establish session with slow.pics. Status: {session_response.status_code}")
+                except requests.exceptions.Timeout:
+                    if session_attempt < session_attempts - 1:
+                        colored_print(f"[WARN] Session timeout (attempt {session_attempt + 1}/{session_attempts}), retrying...", Colors.YELLOW)
+                        time.sleep(5)
+                        continue
+                    else:
+                        raise Exception("Session establishment timed out after multiple attempts")
+            
+            # Verify XSRF token is available
+            if 'XSRF-TOKEN' not in sess.cookies.get_dict():
+                raise Exception("Failed to obtain XSRF token from slow.pics session")
+            
+            # Create the comparison with retry logic
             files = MultipartEncoder(fields, str(uuid.uuid4()))
             
             colored_print("[COPY] Creating comparison...", Colors.CYAN)
-            comp_req = sess.post(
-                'https://slow.pics/upload/comparison', 
-                data=files.to_string(),
-                headers=_get_slowpics_header(str(files.len), files.content_type, sess)
-            )
+            
+            max_retries = 3
+            retry_delay = 2  # seconds
+            
+            for attempt in range(max_retries):
+                try:
+                    comp_req = sess.post(
+                        'https://slow.pics/upload/comparison', 
+                        data=files.to_string(),
+                        headers=_get_slowpics_header(str(files.len), files.content_type, sess),
+                        timeout=60  # 60 second timeout
+                    )
+                    
+                    if comp_req.status_code == 200:
+                        break  # Success!
+                    elif comp_req.status_code == 500 and attempt < max_retries - 1:
+                        colored_print(f"[WARN] Server error (attempt {attempt + 1}/{max_retries}), retrying in {retry_delay}s...", Colors.YELLOW)
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                        continue
+                    else:
+                        # Final attempt or non-retryable error
+                        error_msg = f"Failed to create comparison. Status: {comp_req.status_code}"
+                        try:
+                            error_response = comp_req.json()
+                            if 'error' in error_response:
+                                error_msg += f", Error: {error_response['error']}"
+                            if 'message' in error_response:
+                                error_msg += f", Message: {error_response['message']}"
+                        except:
+                            error_msg += f", Response: {comp_req.text[:200]}"
+                        
+                        raise Exception(error_msg)
+                        
+                except requests.exceptions.Timeout:
+                    if attempt < max_retries - 1:
+                        colored_print(f"[WARN] Request timeout (attempt {attempt + 1}/{max_retries}), retrying in {retry_delay}s...", Colors.YELLOW)
+                        time.sleep(retry_delay)
+                        retry_delay *= 2
+                        continue
+                    else:
+                        raise Exception("Request timed out after multiple attempts")
+                
+                except requests.exceptions.RequestException as e:
+                    if attempt < max_retries - 1:
+                        colored_print(f"[WARN] Network error (attempt {attempt + 1}/{max_retries}): {e}, retrying in {retry_delay}s...", Colors.YELLOW)
+                        time.sleep(retry_delay)
+                        retry_delay *= 2
+                        continue
+                    else:
+                        raise Exception(f"Network error after multiple attempts: {e}")
             
             if comp_req.status_code != 200:
-                raise Exception(f"Failed to create comparison. Status: {comp_req.status_code}, Response: {comp_req.text}")
+                raise Exception(f"Failed to create comparison after {max_retries} attempts")
             
             comp_response = comp_req.json()
             collection = comp_response["collectionUuid"]
@@ -1875,7 +2095,8 @@ def upload_to_slowpics(config, frames, processed_videos):
                     upload_response = sess.post(
                         'https://slow.pics/upload/image', 
                         data=upload_info_encoded.to_string(),
-                        headers=_get_slowpics_header(str(upload_info_encoded.len), upload_info_encoded.content_type, sess)
+                        headers=_get_slowpics_header(str(upload_info_encoded.len), upload_info_encoded.content_type, sess),
+                        timeout=60
                     )
                     
                     if upload_response.status_code != 200 or upload_response.content.decode() != "OK":
@@ -1884,6 +2105,10 @@ def upload_to_slowpics(config, frames, processed_videos):
                     uploaded += 1
                     progress = (uploaded / total_images) * 100
                     colored_print(f"[REFRESH] Progress: {uploaded}/{total_images} images uploaded ({progress:.1f}%)", Colors.BLUE, end='\r')
+                    
+                    # Small delay between uploads to be respectful to the server
+                    if uploaded < total_images:  # Don't delay after the last upload
+                        time.sleep(0.1)  # 100ms delay
             
             colored_print(f"\n[OK] Upload complete!", Colors.GREEN, bold=True)
             
@@ -1900,8 +2125,29 @@ def upload_to_slowpics(config, frames, processed_videos):
         return slowpics_url
         
     except Exception as e:
-        colored_print(f"[ERROR] Upload failed: {str(e)}", Colors.RED, bold=True)
-        colored_print("[TIP] Screenshots are saved in the Screenshots folder if you want to upload manually.", Colors.YELLOW)
+        error_message = str(e)
+        colored_print(f"[ERROR] Upload failed: {error_message}", Colors.RED, bold=True)
+        
+        # Provide specific guidance based on error type
+        if "500" in error_message or "Internal Server Error" in error_message:
+            colored_print("[TIP] This appears to be a server-side issue with slow.pics.", Colors.YELLOW)
+            colored_print("      Try again in a few minutes. The server might be temporarily overloaded.", Colors.YELLOW)
+            colored_print("      If the problem persists, check slow.pics status or try uploading fewer images.", Colors.YELLOW)
+        elif "429" in error_message or "Too Many Requests" in error_message:
+            colored_print("[TIP] Rate limit exceeded. slow.pics is limiting requests to prevent abuse.", Colors.YELLOW)
+            colored_print("      Wait 5-10 minutes before trying again.", Colors.YELLOW)
+            colored_print("      Consider reducing the number of frames or sources if this persists.", Colors.YELLOW)
+        elif "timeout" in error_message.lower():
+            colored_print("[TIP] The upload timed out. This might be due to slow internet or large images.", Colors.YELLOW)
+            colored_print("      Try again with a better internet connection or smaller images.", Colors.YELLOW)
+        elif "XSRF" in error_message:
+            colored_print("[TIP] Authentication issue with slow.pics. Try again - this is usually temporary.", Colors.YELLOW)
+        elif "session" in error_message.lower():
+            colored_print("[TIP] Could not establish connection to slow.pics. Check your internet connection.", Colors.YELLOW)
+        else:
+            colored_print("[TIP] Check your internet connection and try again.", Colors.YELLOW)
+            
+        colored_print("[INFO] Screenshots are saved in the Screenshots folder if you want to upload manually.", Colors.BLUE)
         return None
 
 # =============================================================================

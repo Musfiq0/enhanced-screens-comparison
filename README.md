@@ -5,7 +5,7 @@
 [![Cross Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Docker-blue?logo=docker)](https://github.com/Musfiq0/enhanced-screens-comparison) 
 [![Python](https://img.shields.io/badge/Python-3.8+-green?logo=python)](https://python.org) 
 [![Interface](https://img.shields.io/badge/Interface-GUI%20%2B%20Console%20%2B%20Advanced--CLI-orange)](https://github.com/Musfiq0/enhanced-screens-comparison) 
-[![Version](https://img.shields.io/badge/Version-3.3-brightgreen)](https://github.com/Musfiq0/enhanced-screens-comparison)
+[![Version](https://img.shields.io/badge/Version-3.4.0-brightgreen)](https://github.com/Musfiq0/enhanced-screens-comparison)
 
 
 > Ever wanted to compare multiple videos but got tired of writing VapourSynth/AviSynth scripts for each comparison? This tool automates the entire process and even uploads the results to slow.pics automatically! 🚀
@@ -231,26 +231,17 @@ pip install -r requirements.txt
 python -c "import PyInstaller; print('Build tools ready')"
 ```
 
-## 🆕 Recent Updates
+## 📝 Changelog & Updates
 
-### Version 3.2 - GUI Redesign & UX Improvements 🎨
+📋 **[View Full Changelog](CHANGELOG.md)** - Complete version history with detailed changes, bug fixes, and new features
 
-**🎛️ Complete Interface Overhaul**
-- ✅ **Unified Control Panel** - Consolidated all controls into a single top panel with four labeled sections
-- ✅ **Comparison Type Panel** - Clear radio button selection for Multiple Sources vs Source vs Encode
-- ✅ **Actions Panel** - Primary operations (🎬 Generate, 📤 Upload) with instant Results tab switching  
-- ✅ **Video Management Panel** - Compact 2x2 grid layout: 🗑 Remove, ✏ Edit, 🗂 Clear All, ⏹ Stop
-- ✅ **Status Panel** - Dedicated progress bar and status display for clear operation feedback
+### � Latest Version: 3.4.0
+- 🚀 **Advanced CLI Mode** with professional automation features
+- 🔧 **Enhanced Upload System** with chunking support for large batches (500+ images)
+- 🎯 **Improved Reliability** with smart retry logic and rate limiting detection
+- 📈 **Better Error Handling** with actionable error messages
 
-**🎯 User Experience Enhancements**
-- ✅ **Clickable Drop Zone** - Large, prominent file selection area (click OR drag-and-drop)
-- ✅ **Settings Dialog** - All settings moved to clean modal window accessible via ⚙ Settings button
-- ✅ **Visual Icon System** - Descriptive icons on every button for immediate recognition
-- ✅ **Space Optimization** - Maximum space allocated to video list, streamlined top controls
-- ✅ **Instant Operation Feedback** - Generate/Upload automatically switch to Results tab with live progress
-- ✅ **Professional Design** - Modern layout with proper spacing, visual hierarchy, and clean aesthetics
-- ✅ **Responsive Layout** - Optimal control arrangement that scales with window size
-- ✅ **Removed Clutter** - Eliminated Add Video button, moved settings out of tabs for cleaner interface
+*[See complete changelog for all versions →](CHANGELOG.md)*
 
 ## ⚖️ License
 

@@ -1199,13 +1199,26 @@ class ScreenshotComparisonGUI:
                         # Extract frame numbers from filenames
                         for png_file in png_files:
                             try:
-                                # Assuming format: SourceName_000000.png
-                                parts = png_file.split('_')
+                                # Handle multiple possible formats:
+                                # Format 1: SourceName_000000.png (standard format)
+                                # Format 2: SourceName_000000_000000.png (alternative format)
+                                parts = png_file.replace('.png', '').split('_')
                                 if len(parts) >= 2:
-                                    frame_num = int(parts[1])
+                                    # Try to get the frame number from the last numeric part
+                                    frame_part = parts[-1]  # Get the last part after underscore
+                                    frame_num = int(frame_part)
                                     all_frames.add(frame_num)
                             except (ValueError, IndexError):
-                                continue
+                                # If parsing fails, try alternative approach
+                                try:
+                                    # Look for 6-digit numbers in the filename
+                                    import re
+                                    numbers = re.findall(r'\d{6}', png_file)
+                                    if numbers:
+                                        frame_num = int(numbers[-1])  # Use the last 6-digit number
+                                        all_frames.add(frame_num)
+                                except (ValueError, IndexError):
+                                    continue
             
             if not source_folders or not all_frames:
                 raise Exception("No valid screenshots found in Screenshots folder")

@@ -755,11 +755,24 @@ Resolution presets: 720p, 1080p, 1440p, 4k, manual
                     # Extract frame numbers from filenames
                     for png_file in png_files:
                         try:
-                            # Assuming format: SourceName_000000.png or SourceName_000000_000000.png
-                            parts = png_file.replace('.png', '').split('_')
-                            if len(parts) >= 2:
-                                frame_part = parts[-1]  # Take the last part as frame number
-                                frame_num = int(frame_part)
+                            # Handle standard format: SourceName_000000.png
+                            base_name = png_file.replace('.png', '')
+                            
+                            # Try standard format first
+                            if '_' in base_name:
+                                parts = base_name.split('_')
+                                if len(parts) >= 2:
+                                    frame_part = parts[-1]  # Take the last part as frame number
+                                    if frame_part.isdigit():
+                                        frame_num = int(frame_part)
+                                        all_frames.add(frame_num)
+                                        continue
+                            
+                            # Fallback: try to find any 6-digit number in filename
+                            import re
+                            match = re.search(r'(\d{6})', base_name)
+                            if match:
+                                frame_num = int(match.group(1))
                                 all_frames.add(frame_num)
                         except (ValueError, IndexError):
                             continue
