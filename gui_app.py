@@ -1258,7 +1258,7 @@ class ScreenshotComparisonGUI:
                 
                 # Clear screenshots folder after successful upload if option is enabled
                 if self.clear_after_upload_var.get():
-                    if self.clear_screenshots_folder():
+                    if self.config.get('clear_after_upload', False):
                         results += "Screenshots folder cleared after successful upload.\n"
                     else:
                         results += "Warning: Could not clear screenshots folder after upload.\n"
@@ -2156,14 +2156,20 @@ class VideoConfigDialog:
         """Load video information"""
         try:
             if not COMPARISON_CORE_AVAILABLE:
-                self.resolution_label.config(text="Core not available", foreground='red')
+                try:
+                    self.resolution_label.config(text="Core not available", foreground='red')
+                except tk.TclError:
+                    pass
                 return
                 
             # Try to get video info using the comparison core
             threading.Thread(target=self._load_video_info_worker, daemon=True).start()
             
         except Exception as e:
-            self.resolution_label.config(text=f"Error: {str(e)}", foreground='red')
+            try:
+                self.resolution_label.config(text=f"Error: {str(e)}", foreground='red')
+            except tk.TclError:
+                pass
     
     def _load_video_info_worker(self):
         """Worker thread for loading video information"""
@@ -2188,17 +2194,45 @@ class VideoConfigDialog:
             self._original_width = width
             self._original_height = height
             
-            # Update UI in main thread
+            # Update UI in main thread - check if dialog still exists
             resolution_text = f"{width}x{height} ({frames} frames)"
-            self.dialog.after(0, lambda: self.resolution_label.config(text=resolution_text, foreground='green'))
-            
-            # Update default resize values
-            self.dialog.after(0, lambda: self.width_var.set(width))
-            self.dialog.after(0, lambda: self.height_var.set(height))
+            try:
+                if self.dialog.winfo_exists():
+                    self.dialog.after(0, lambda: self._safe_update_resolution(resolution_text, 'green'))
+                    
+                    # Update default resize values
+                    self.dialog.after(0, lambda: self._safe_update_resize_values(width, height))
+            except tk.TclError:
+                # Dialog has been destroyed, ignore
+                pass
             
         except Exception as e:
             error_text = f"Detection failed: {str(e)}"
-            self.dialog.after(0, lambda: self.resolution_label.config(text=error_text, foreground='red'))
+            try:
+                if self.dialog.winfo_exists():
+                    self.dialog.after(0, lambda: self._safe_update_resolution(error_text, 'red'))
+            except tk.TclError:
+                # Dialog has been destroyed, ignore
+                pass
+    
+    def _safe_update_resolution(self, text, color):
+        """Safely update resolution label if dialog still exists"""
+        try:
+            if self.dialog.winfo_exists() and hasattr(self, 'resolution_label'):
+                self.resolution_label.config(text=text, foreground=color)
+        except tk.TclError:
+            # Widget no longer exists, ignore
+            pass
+    
+    def _safe_update_resize_values(self, width, height):
+        """Safely update resize values if dialog still exists"""
+        try:
+            if self.dialog.winfo_exists() and hasattr(self, 'width_var') and hasattr(self, 'height_var'):
+                self.width_var.set(width)
+                self.height_var.set(height)
+        except tk.TclError:
+            # Widget no longer exists, ignore
+            pass
     
     def get_crop_preset_values(self, preset_label, video_width=1920, video_height=1080):
         """Convert crop preset label to actual crop values based on video dimensions"""
@@ -2288,8 +2322,12 @@ class VideoConfigDialog:
             self.pad_end_var.set(video['pad_end'])
         
         # Update the UI state after setting values
-        self.dialog.after(10, self.update_resize_state)
-        self.dialog.after(10, self.update_crop_state)
+        try:
+            self.dialog.after(10, self.update_resize_state)
+            self.dialog.after(10, self.update_crop_state)
+        except tk.TclError:
+            # Dialog destroyed during initialization, ignore
+            pass
     
     def ok(self):
         """Handle OK button"""
