@@ -28,7 +28,7 @@
 # Double-click START_HERE.bat and choose your option:
 # 1. GUI Application (Point and click)
 # 2. Interactive CLI/Console (Guided prompts)
-# 3. Advanced CLI (Professional automation) 🆕
+# 3. Advanced CLI (Professional automation)
 # 4. Build Windows Executable
 
 START_HERE.bat
@@ -46,7 +46,7 @@ python gui_app.py
 # Interactive CLI Mode (Guided prompts)
 python comparev2.py
 
-# Advanced CLI Mode (Professional automation) 🆕
+# Advanced CLI Mode (Professional automation)
 python comp-cli.py -h
 
 ### 🔨 I want to build my own because reasons
@@ -132,6 +132,7 @@ python comp-cli.py [videos] [options]
 python comp-cli.py video1.mkv video2.mp4                    # Basic comparison
 python comp-cli.py *.mkv -cn "My Collection" -u             # Compare all videos and upload
 python comp-cli.py source.mkv encode.mkv -f 1000,5000,9000 # Custom frames
+python comp-cli.py video1.mkv video2.mkv --preview          # 🆕 Interactive frame selection
 ```
 
 #### 📝 Complete Syntax Reference
@@ -145,6 +146,7 @@ python comp-cli.py video1 video2 [video3...] [options]
 ```bash
 -f, --frames          Frame numbers (e.g., 1000,5000,9000)
 -i, --interval        Frame interval in seconds (e.g., 300 for every 5 minutes)
+--preview             🆕 Show interactive video preview for frame selection
 -s, --screenshot-dir  Directory for screenshots (default: Screenshots)
 -o, --output-dir      Output directory for comparisons
 -cn, --collection-name Collection name for slow.pics upload (required for upload)
@@ -181,8 +183,6 @@ python comp-cli.py -uo \
 - **Same processing engine**: Uses VapourSynth backend like GUI/Console modes
 - **Compatible output**: Screenshots work with all modes  
 - **Shared configuration**: Uses same crop presets and processing logic
-
-
 
 ## 🤝 Contributing
 

@@ -82,8 +82,10 @@ class SettingsDialog:
         frame_frame = ttk.LabelFrame(main_frame, text="Frame Selection", padding=10)
         frame_frame.pack(fill='x', pady=(0, 15))
         
-        # Determine current method
-        current_method = 'custom' if self.config.get('custom_frames') else 'interval'
+        # Determine current method (check explicit frame_method first, then fallback to custom_frames existence)
+        current_method = self.config.get('frame_method', 'interval')
+        if current_method not in ['interval', 'custom']:
+            current_method = 'custom' if self.config.get('custom_frames') else 'interval'
         
         self.frame_method_var = tk.StringVar(value=current_method)
         ttk.Radiobutton(frame_frame, text="Use frame interval", 
@@ -112,6 +114,7 @@ class SettingsDialog:
         custom_frames_str = ""
         if self.config.get('custom_frames'):
             custom_frames_str = ",".join(map(str, self.config['custom_frames']))
+            print(f"[DEBUG] Settings dialog loaded with {len(self.config['custom_frames'])} custom frames")
         
         self.custom_frames_var = tk.StringVar(value=custom_frames_str or "100,500,1000")
         self.custom_frames_entry = ttk.Entry(custom_frame, textvariable=self.custom_frames_var, width=30)
@@ -305,8 +308,8 @@ class ScreenshotComparisonGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Enhanced Screenshot Comparison Tool")
-        self.root.geometry("800x650")
-        self.root.minsize(750, 550)
+        self.root.geometry("900x700")  # Increased size to accommodate larger UI elements
+        self.root.minsize(800, 650)
         
         # Configure style
         self.style = ttk.Style()
@@ -314,6 +317,7 @@ class ScreenshotComparisonGUI:
         
         # Data storage
         self.videos = []
+        self.preview_selected_frames = []  # For multi-video preview frame selection
         self.config = {
             'comparison_type': 'multiple_sources',
             'frame_interval': 150,
@@ -399,6 +403,10 @@ class ScreenshotComparisonGUI:
         self.generate_button = ttk.Button(action_row1, text="🎬 Generate", 
                   command=self.start_generation, style='Accent.TButton', width=14)
         self.generate_button.pack(side='left', padx=(0, 5))
+        
+        self.preview_button = ttk.Button(action_row1, text="📺 Preview", 
+                  command=self.open_multi_video_preview, width=14)
+        self.preview_button.pack(side='left', padx=(0, 5))
         
         ttk.Button(action_row1, text="📤 Upload", 
                   command=self.upload_existing, width=14).pack(side='left')
@@ -492,12 +500,23 @@ class ScreenshotComparisonGUI:
         
     def open_settings_dialog(self):
         """Open the settings configuration dialog"""
+        # Check if there are preview selected frames and update config before opening dialog
+        if hasattr(self, 'preview_selected_frames') and self.preview_selected_frames:
+            # Auto-populate custom frames with preview selections
+            self.config['custom_frames'] = sorted(self.preview_selected_frames)
+            self.config['frame_method'] = 'custom'  # Switch to custom frame mode
+            print(f"[INFO] Using {len(self.preview_selected_frames)} frames from preview selection")
+        
         dialog = SettingsDialog(self.root, self.config)
         self.root.wait_window(dialog.dialog)
         
         if dialog.result:
             # Update configuration with results from dialog
             self.config.update(dialog.result)
+            
+            # Clear preview frames after they've been used
+            if hasattr(self, 'preview_selected_frames'):
+                self.preview_selected_frames = []
         
     def setup_results_tab(self):
         """Set up the results tab"""
@@ -711,6 +730,52 @@ class ScreenshotComparisonGUI:
         # Update drop label visibility
         self.update_drop_label_visibility()
     
+    def open_multi_video_preview(self):
+        """Open embedded multi-video preview window"""
+        if not self.videos:
+            messagebox.showwarning("Warning", "Please add at least one video source before using preview.")
+            return
+        
+        try:
+            # Create video configurations for preview
+            videos_config = []
+            for video in self.videos:
+                video_config = {
+                    'path': video['path'],
+                    'name': video.get('name', os.path.basename(video['path']))
+                }
+                
+                # Add crop settings if available
+                if 'crop' in video and video['crop']:
+                    video_config['crop'] = video['crop']
+                
+                videos_config.append(video_config)
+            
+            from comparev2 import create_video_processor
+            processor = create_video_processor()
+            
+            # Create embedded preview window
+            preview_window = VideoPreviewWindow(self.root, videos_config, processor)
+            
+            # Wait for preview window to close
+            self.root.wait_window(preview_window.window)
+            
+            # Check if frames were selected during preview
+            if hasattr(preview_window, 'selected_frames') and preview_window.selected_frames:
+                # Store selected frames for use in screenshot generation
+                self.preview_selected_frames = preview_window.selected_frames
+                
+                messagebox.showinfo("Frames Selected", 
+                    f"Selected {len(preview_window.selected_frames)} frames from preview.\n\n"
+                    "These frames will be used for screenshot generation.\n"
+                    "You can now proceed with running the comparison.")
+            
+        except Exception as e:
+            messagebox.showerror("Preview Error", f"Failed to open preview: {str(e)}")
+            print(f"[ERROR] Preview failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
     def start_generation(self):
         """Start screenshot generation"""
         if not self.videos:
@@ -741,6 +806,7 @@ class ScreenshotComparisonGUI:
         
         # Update UI state
         self.generate_button.config(state='disabled')
+        self.preview_button.config(state='disabled')
         self.stop_button.config(state='normal')
         self.status_label.config(text="Generating...")
         self.progress_var.set(0)
@@ -922,7 +988,23 @@ class ScreenshotComparisonGUI:
             
             total_frames = min(video['processed_frames'] for video in processed_videos)
             
-            if self.config['custom_frames']:
+            # Check for preview-selected frames 
+            preview_frames = []
+            
+            # First check main preview selection (from multi-video preview)
+            if hasattr(self, 'preview_selected_frames') and self.preview_selected_frames:
+                preview_frames = self.preview_selected_frames
+            else:
+                # Check individual video preview selections (for single video dialogs)
+                for video in self.videos:
+                    if 'preview_selected_frames' in video and video['preview_selected_frames']:
+                        preview_frames.extend(video['preview_selected_frames'])
+            
+            if preview_frames:
+                # Use frames selected from preview, remove duplicates and sort
+                frames = sorted(list(set(f for f in preview_frames if 0 <= f < total_frames)))
+                self.root.after(0, lambda: self.status_label.config(text=f"Using {len(frames)} frames from preview..."))
+            elif self.config['custom_frames']:
                 frames = [f for f in self.config['custom_frames'] if 0 <= f < total_frames]
             else:
                 frames = list(range(0, total_frames, self.config['frame_interval']))
@@ -1097,6 +1179,7 @@ class ScreenshotComparisonGUI:
         """Handle generation completion"""
         self.generation_active = False
         self.generate_button.config(state='normal')
+        self.preview_button.config(state='normal')
         self.stop_button.config(state='disabled')
         self.status_label.config(text="Complete")
         self.progress_var.set(100)
@@ -1121,6 +1204,7 @@ class ScreenshotComparisonGUI:
         """Handle generation error"""
         self.generation_active = False
         self.generate_button.config(state='normal')
+        self.preview_button.config(state='normal')
         self.stop_button.config(state='disabled')
         self.status_label.config(text="Error")
         self.progress_var.set(0)
@@ -1131,6 +1215,7 @@ class ScreenshotComparisonGUI:
         """Handle generation stop"""
         self.generation_active = False
         self.generate_button.config(state='normal')
+        self.preview_button.config(state='normal')
         self.stop_button.config(state='disabled')
         self.status_label.config(text="Stopped")
         
@@ -2401,6 +2486,10 @@ class VideoConfigDialog:
             'pad_end': self.pad_end_var.get()
         })
         
+        # Add preview-selected frames if any
+        if hasattr(self, 'selected_preview_frames') and self.selected_preview_frames:
+            self.result['preview_selected_frames'] = self.selected_preview_frames
+        
         self.dialog.destroy()
     
     def cancel(self):
@@ -2409,8 +2498,862 @@ class VideoConfigDialog:
         self.dialog.destroy()
 
 
-
+class VideoPreviewWindow:
+    """Enhanced video preview window with multi-video support and frame selection"""
     
+    def __init__(self, parent, videos_config, processor):
+        self.parent = parent
+        self.videos_config = videos_config  # List of video configurations
+        self.processor = processor
+        self.current_video_index = 0
+        self.current_frame = 0
+        self.selected_frames = []
+        self.videos = {}
+        self.frame_counts = {}
+        
+        # Flag to track if frames were successfully submitted
+        self.frames_submitted = False
+        
+        # Synchronized frame position across all videos (not per-video tracking)
+        self.synchronized_frame = 0  # All videos stay at the same frame number
+        
+        # Load all videos
+        self.load_videos()
+        
+        if not self.videos:
+            messagebox.showerror("Error", "Failed to load any videos for preview")
+            return
+            
+        # Create window with standard Windows title bar
+        self.window = tk.Toplevel(parent)
+        self.window.title("Video Preview - Frame Selection")
+        self.window.geometry("1760x960")  # Updated to requested size
+        self.window.minsize(1200, 800)  # Larger minimum size
+        self.window.resizable(True, True)
+        
+        # Configure window to behave like a normal application window
+        # with full Windows title bar including minimize/maximize/close buttons
+        self.window.wm_attributes("-toolwindow", False)
+        self.window.wm_attributes("-topmost", False)
+        
+        # Make it completely independent (no modal behavior)
+        # This ensures the standard Windows caption bar appears
+        
+        # Set window icon (same as main window)
+        try:
+            self.window.iconbitmap("icon.ico")
+        except:
+            pass  # Icon file not found, use default
+        
+        # Start in normal state
+        self.window.state('normal')
+        
+        # Handle window close button (X) in title bar
+        self.window.protocol("WM_DELETE_WINDOW", self.close_preview)
+        
+        # Bind keyboard events for navigation
+        self.window.bind('<Key>', self.on_key_press)
+        self.window.focus_set()
+        
+        # Disable default button activation on Enter for the main window
+        self.window.bind('<Return>', lambda e: 'break')
+        self.window.bind('<KP_Enter>', lambda e: 'break')
+        
+        self.setup_modern_ui()
+        self.update_scale_range()  # Ensure frame scale is set correctly
+        self.update_frame()
+        
+    def load_videos(self):
+        """Load all videos for preview"""
+        for i, video_config in enumerate(self.videos_config):
+            try:
+                file_path = video_config['path']
+                display_name = video_config.get('name', f'Video {i+1}')
+                
+                # Load video with processor
+                video = self.processor.load_video(file_path)
+                frame_count = self.processor.get_frame_count(video)
+                
+                self.videos[i] = {
+                    'video': video,
+                    'config': video_config,
+                    'display_name': display_name,
+                    'file_path': file_path
+                }
+                self.frame_counts[i] = frame_count
+                
+                print(f"[PREVIEW] Loaded: {display_name} ({frame_count} frames)")
+                
+            except Exception as e:
+                print(f"[ERROR] Failed to load {video_config['path']}: {str(e)}")
+                continue
+        
+    def setup_modern_ui(self):
+        """Setup modern VSPreview-style UI with resizable panels"""
+        # Main container with paned window for resizable layout
+        main_paned = ttk.PanedWindow(self.window, orient='horizontal')
+        main_paned.pack(fill='both', expand=True, padx=2, pady=2)
+        
+        # Left panel - Video preview (larger, resizable)
+        left_frame = ttk.Frame(main_paned, relief='flat')
+        main_paned.add(left_frame, weight=4)
+        
+        # Bind mouse side buttons to the entire preview panel for video navigation
+        # Note: Only use Button-4 and Button-5 for maximum compatibility
+        try:
+            left_frame.bind('<Button-4>', self.on_mouse_side_button_prev)
+            left_frame.bind('<Button-5>', self.on_mouse_side_button_next)
+        except Exception as e:
+            print(f"[WARNING] Could not bind mouse side buttons: {e}")
+        
+        # Right panel - Controls (smaller, resizable)
+        right_frame = ttk.Frame(main_paned, relief='flat')
+        main_paned.add(right_frame, weight=1)
+        
+        # Set initial sash position (80% left, 20% right) for 1760px window
+        self.window.after(100, lambda: main_paned.sashpos(0, int(1408)))
+        
+        # === LEFT PANEL - VIDEO PREVIEW ===
+        # Video container that responds to resizing
+        video_container = ttk.Frame(left_frame)
+        video_container.pack(fill='both', expand=True, padx=1, pady=1)
+        
+        # Canvas for video display - make it resize smoothly
+        self.video_canvas = tk.Canvas(video_container, bg='#1a1a1a', highlightthickness=0, bd=0)
+        self.video_canvas.pack(fill='both', expand=True)
+        
+        # Bind resize event for smooth canvas updates
+        self.video_canvas.bind('<Configure>', self.on_canvas_resize)
+        
+        # Bind mouse side buttons for video navigation (when hovering over preview)
+        # Note: Only use Button-4 and Button-5 for maximum compatibility
+        try:
+            self.video_canvas.bind('<Button-4>', self.on_mouse_side_button_prev)  # Mouse4 - Previous video
+            self.video_canvas.bind('<Button-5>', self.on_mouse_side_button_next)  # Mouse5 - Next video
+        except Exception as e:
+            print(f"[WARNING] Could not bind canvas mouse side buttons: {e}")
+        
+        # Bottom seek controls (minimal and clean)
+        seek_frame = ttk.Frame(left_frame)
+        seek_frame.pack(fill='x', padx=3, pady=(0, 3))
+        
+        # Frame input (compact)
+        frame_input_frame = ttk.Frame(seek_frame)
+        frame_input_frame.pack(side='left')
+        
+        ttk.Label(frame_input_frame, text="Frame:", font=('Segoe UI', 8)).pack(side='left')
+        self.frame_var = tk.IntVar(value=0)
+        frame_entry = ttk.Entry(frame_input_frame, textvariable=self.frame_var, width=7, font=('Segoe UI', 8))
+        frame_entry.pack(side='left', padx=(2, 3))
+        frame_entry.bind('<Return>', lambda e: self.go_to_frame())
+        
+        go_btn = ttk.Button(frame_input_frame, text="Go", command=self.go_to_frame, width=3, takefocus=False)
+        go_btn.pack(side='left')
+        
+        # Seek bar (responsive and clickable)
+        self.frame_scale = ttk.Scale(seek_frame, from_=0, to=100, orient='horizontal', 
+                                   command=self.on_scale_change)
+        self.frame_scale.pack(side='left', fill='x', expand=True, padx=(8, 0))
+        
+        # Make scale clickable anywhere on the bar
+        self.frame_scale.bind('<Button-1>', self.on_scale_click)
+        
+        # === RIGHT PANEL - CONTROLS ===
+        # Create notebook for tabbed interface like VSPreview
+        control_notebook = ttk.Notebook(right_frame)
+        control_notebook.pack(fill='both', expand=True, padx=1, pady=1)
+        
+        # Single unified tab for all frame and selection controls
+        frame_analysis_frame = ttk.Frame(control_notebook)
+        control_notebook.add(frame_analysis_frame, text="Frame Analysis")
+        
+        # === FRAME ANALYSIS TAB (UNIFIED) ===
+        analysis_container = ttk.Frame(frame_analysis_frame)
+        analysis_container.pack(fill='both', expand=True, padx=3, pady=3)
+        
+        # Video selection section
+        video_section = ttk.LabelFrame(analysis_container, text="Video Source", padding=3)
+        video_section.pack(fill='x', pady=(0, 5))
+        
+        self.video_var = tk.StringVar()
+        video_names = [self.videos[i]['display_name'] for i in self.videos.keys()]
+        self.video_dropdown = ttk.Combobox(video_section, textvariable=self.video_var, 
+                                          values=video_names, state='readonly', font=('Segoe UI', 8))
+        self.video_dropdown.pack(fill='x')
+        self.video_dropdown.set(video_names[0] if video_names else "")
+        self.video_dropdown.bind('<<ComboboxSelected>>', self.on_video_changed)
+        
+        # Mouse navigation tip
+        tip_label = ttk.Label(video_section, text="💡 Tip: Use mouse side buttons over preview to switch videos", 
+                             font=('Segoe UI', 7), foreground='gray')
+        tip_label.pack(anchor='w', pady=(2, 0))
+        
+        # Frame info section
+        info_section = ttk.LabelFrame(analysis_container, text="Frame Information", padding=3)
+        info_section.pack(fill='x', pady=(0, 5))
+        
+        # Frame number and type info
+        self.frame_info_label = ttk.Label(info_section, text="", font=('Segoe UI', 8))
+        self.frame_info_label.pack(anchor='w')
+        
+        # Video resolution info
+        self.video_info_label = ttk.Label(info_section, text="", font=('Segoe UI', 8))
+        self.video_info_label.pack(anchor='w')
+        
+        # Frame type info (P, B, I frames)
+        self.frame_type_label = ttk.Label(info_section, text="", font=('Segoe UI', 8))
+        self.frame_type_label.pack(anchor='w')
+        
+        # Selection info section  
+        selection_info_section = ttk.LabelFrame(analysis_container, text="Selection Status", padding=3)
+        selection_info_section.pack(fill='x', pady=(0, 5))
+        
+        self.selection_count_label = ttk.Label(selection_info_section, text="Selected: 0", 
+                                             font=('Segoe UI', 8, 'bold'))
+        self.selection_count_label.pack(anchor='w')
+        
+        # Selection controls
+        sel_controls_section = ttk.LabelFrame(analysis_container, text="Frame Selection", padding=3)
+        sel_controls_section.pack(fill='x', pady=(0, 5))
+        
+        # Control buttons (properly sized)
+        sel_btn_frame = ttk.Frame(sel_controls_section)
+        sel_btn_frame.pack(fill='x', pady=(0, 3))
+        
+        add_btn = ttk.Button(sel_btn_frame, text="+ Add", command=self.add_current_frame, takefocus=False)
+        add_btn.pack(side='left', padx=(0, 2), fill='x', expand=True)
+        
+        remove_btn = ttk.Button(sel_btn_frame, text="- Remove", command=self.remove_current_frame, takefocus=False)
+        remove_btn.pack(side='left', padx=(0, 2), fill='x', expand=True)
+        
+        clear_btn = ttk.Button(sel_btn_frame, text="Clear", command=self.clear_selection, takefocus=False)
+        clear_btn.pack(side='left', fill='x', expand=True)
+        
+        # Quick selection
+        quick_section = ttk.LabelFrame(analysis_container, text="Quick Selection", padding=3)
+        quick_section.pack(fill='x', pady=(0, 5))
+        
+        quick_frame = ttk.Frame(quick_section)
+        quick_frame.pack(fill='x')
+        
+        ttk.Label(quick_frame, text="Every:", font=('Segoe UI', 8)).pack(side='left')
+        
+        quick_500 = ttk.Button(quick_frame, text="500", command=lambda: self.quick_select(500), takefocus=False)
+        quick_500.pack(side='left', padx=(3, 1), fill='x', expand=True)
+        
+        quick_1k = ttk.Button(quick_frame, text="1K", command=lambda: self.quick_select(1000), takefocus=False)
+        quick_1k.pack(side='left', padx=(1, 1), fill='x', expand=True)
+        
+        quick_2k = ttk.Button(quick_frame, text="2K", command=lambda: self.quick_select(2000), takefocus=False)
+        quick_2k.pack(side='left', padx=(1, 0), fill='x', expand=True)
+        
+        # Selected frames dropdown (compact replacement for listbox)
+        selected_section = ttk.LabelFrame(analysis_container, text="Selected Frames", padding=3)
+        selected_section.pack(fill='x', pady=(0, 5))
+        
+        self.selected_frames_var = tk.StringVar()
+        self.selected_frames_dropdown = ttk.Combobox(selected_section, textvariable=self.selected_frames_var, 
+                                                   state='readonly', font=('Segoe UI', 8))
+        self.selected_frames_dropdown.pack(fill='x', pady=(0, 2))
+        self.selected_frames_dropdown.bind('<<ComboboxSelected>>', self.on_selected_frame_goto)
+        
+        # Export options section (using freed space)
+        options_section = ttk.LabelFrame(analysis_container, text="Export Options", padding=3)
+        options_section.pack(fill='x', pady=(0, 5))
+        
+        # Collection name
+        ttk.Label(options_section, text="Collection:", font=('Segoe UI', 8)).pack(anchor='w')
+        self.collection_entry = ttk.Entry(options_section, font=('Segoe UI', 8))
+        self.collection_entry.pack(fill='x', pady=(0, 3))
+        
+        # Options checkboxes
+        options_frame = ttk.Frame(options_section)
+        options_frame.pack(fill='x')
+        
+        self.public_var = tk.BooleanVar()
+        self.nsfw_var = tk.BooleanVar()
+        
+        public_cb = ttk.Checkbutton(options_frame, text="Public", variable=self.public_var)
+        public_cb.pack(side='left')
+        
+        nsfw_cb = ttk.Checkbutton(options_frame, text="NSFW", variable=self.nsfw_var)
+        nsfw_cb.pack(side='right')
+        
+        # Action buttons at bottom (properly sized)
+        action_section = ttk.Frame(analysis_container)
+        action_section.pack(fill='x', side='bottom', pady=(5, 0))
+        
+        use_btn = ttk.Button(action_section, text="Use Selected", command=self.use_selected_frames, takefocus=False)
+        use_btn.pack(fill='x', pady=(0, 1))
+        
+        cancel_btn = ttk.Button(action_section, text="Cancel", command=self.close_preview, takefocus=False)
+        cancel_btn.pack(fill='x')
+        
+    def on_canvas_resize(self, event):
+        """Handle canvas resize events for smooth video scaling"""
+        # Set resize flag for performance optimization
+        self._resizing = True
+        
+        # Cancel any pending resize updates
+        if hasattr(self, '_resize_after_id'):
+            self.window.after_cancel(self._resize_after_id)
+        
+        # Re-display the current frame with new canvas size
+        if hasattr(self, 'current_frame') and self.current_video_index in self.videos:
+            # Immediate low-quality update for responsiveness
+            self.redraw_current_frame()
+            
+            # Schedule high-quality update after resize is done
+            self._resize_after_id = self.window.after(150, self._finish_resize)
+    
+    def _finish_resize(self):
+        """Complete resize with high-quality redraw"""
+        self._resizing = False
+        self.redraw_current_frame()
+    
+    def redraw_current_frame(self):
+        """Redraw current frame at new canvas size"""
+        try:
+            if self.current_video_index not in self.videos:
+                return
+            video = self.videos[self.current_video_index]['video']
+            frame = self.processor.get_frame(video, self.current_frame)
+            self.display_frame(frame)
+        except Exception as e:
+            print(f"[ERROR] Failed to redraw frame: {e}")
+    
+    def on_selected_frame_goto(self, event=None):
+        """Go to selected frame from dropdown"""
+        selection = self.selected_frames_var.get()
+        if selection and selection.startswith("Frame "):
+            try:
+                frame_num = int(selection.split(" ")[1]) - 1
+                self.current_frame = frame_num
+                self.update_frame()
+            except (ValueError, IndexError):
+                pass
+        
+    def on_key_press(self, event):
+        """Handle keyboard shortcuts for navigation"""
+        key = event.keysym.lower()
+        
+        # Navigation keys (simplified)
+        if key in ['left', 'a']:
+            self.prev_frame()
+        elif key in ['right', 'd']:
+            self.next_frame()
+        elif key in ['up', 'w']:
+            self.prev_100()  # 100 frames up
+        elif key in ['down', 's']:
+            self.next_100()  # 100 frames down
+        elif key == 'home':
+            self.go_to_first()
+        elif key == 'end':
+            self.go_to_last()
+        elif key == 'page_up':
+            self.prev_1000()
+        elif key == 'page_down':
+            self.next_1000()
+        
+        # Selection keys
+        elif key == 'space':
+            self.add_current_frame()
+        elif key in ['delete', 'backspace']:
+            self.remove_current_frame()
+        elif key == 'escape':
+            self.close_preview()
+        # Note: Return key is now handled specifically by frame entry field only
+        
+    def on_video_changed(self, event=None):
+        """Handle video selection change"""
+        selected_name = self.video_var.get()
+        for i, video_data in self.videos.items():
+            if video_data['display_name'] == selected_name:
+                self.current_video_index = i
+                
+                # Use synchronized frame position (same frame across all videos)
+                max_frame = self.frame_counts.get(i, 1) - 1
+                self.current_frame = max(0, min(self.synchronized_frame, max_frame))
+                
+                self.update_scale_range()
+                self.update_frame()
+                break
+                
+    def prev_video(self):
+        """Switch to previous video"""
+        if len(self.videos) > 1:
+            indices = list(self.videos.keys())
+            current_pos = indices.index(self.current_video_index)
+            new_pos = (current_pos - 1) % len(indices)
+            self.current_video_index = indices[new_pos]
+            self.video_var.set(self.videos[self.current_video_index]['display_name'])
+            
+            # Use synchronized frame position
+            max_frame = self.frame_counts.get(self.current_video_index, 1) - 1
+            self.current_frame = max(0, min(self.synchronized_frame, max_frame))
+            
+            self.update_scale_range()
+            self.update_frame()
+            
+    def next_video(self):
+        """Switch to next video"""
+        if len(self.videos) > 1:
+            indices = list(self.videos.keys())
+            current_pos = indices.index(self.current_video_index)
+            new_pos = (current_pos + 1) % len(indices)
+            self.current_video_index = indices[new_pos]
+            self.video_var.set(self.videos[self.current_video_index]['display_name'])
+            
+            # Use synchronized frame position
+            max_frame = self.frame_counts.get(self.current_video_index, 1) - 1
+            self.current_frame = max(0, min(self.synchronized_frame, max_frame))
+            
+            self.update_scale_range()
+            self.update_frame()
+    
+    def on_mouse_side_button_prev(self, event):
+        """Handle mouse side button for previous video navigation"""
+        if len(self.videos) > 1:
+            # Get current video name for feedback
+            current_name = self.videos[self.current_video_index]['display_name']
+            self.prev_video()
+            new_name = self.videos[self.current_video_index]['display_name']
+            print(f"[MOUSE] Switched from '{current_name}' to '{new_name}' (Mouse Side Button)")
+            
+            # Brief visual feedback in window title
+            original_title = self.window.title()
+            self.window.title(f"Video Preview - {new_name}")
+            self.window.after(2000, lambda: self.window.title(original_title))
+        return "break"  # Prevent default behavior
+    
+    def on_mouse_side_button_next(self, event):
+        """Handle mouse side button for next video navigation"""
+        if len(self.videos) > 1:
+            # Get current video name for feedback
+            current_name = self.videos[self.current_video_index]['display_name']
+            self.next_video()
+            new_name = self.videos[self.current_video_index]['display_name']
+            print(f"[MOUSE] Switched from '{current_name}' to '{new_name}' (Mouse Side Button)")
+            
+            # Brief visual feedback in window title
+            original_title = self.window.title()
+            self.window.title(f"Video Preview - {new_name}")
+            self.window.after(2000, lambda: self.window.title(original_title))
+        return "break"  # Prevent default behavior
+            
+    def update_scale_range(self):
+        """Update the frame scale range for current video"""
+        if self.current_video_index in self.frame_counts:
+            max_frame = self.frame_counts[self.current_video_index] - 1
+            self.frame_scale.configure(to=max_frame)
+            
+    def on_scale_change(self, value):
+        """Handle scale change"""
+        try:
+            new_frame = int(float(value))
+            if new_frame != self.current_frame:
+                self.current_frame = new_frame
+                # Update synchronized frame position
+                self.synchronized_frame = self.current_frame
+                self.update_frame()
+        except ValueError:
+            pass
+    
+    def on_scale_click(self, event):
+        """Handle clicks anywhere on the scale to jump to that position"""
+        try:
+            # Get the scale widget and calculate the frame position from click
+            scale_widget = event.widget
+            scale_length = scale_widget.winfo_width()
+            click_pos = event.x
+            
+            # Calculate the frame number based on click position
+            if scale_length > 0:
+                from_val = scale_widget.cget('from')
+                to_val = scale_widget.cget('to')
+                click_ratio = click_pos / scale_length
+                new_frame = int(from_val + (to_val - from_val) * click_ratio)
+                
+                # Ensure frame is within bounds
+                max_frame = self.frame_counts.get(self.current_video_index, 1) - 1
+                new_frame = max(0, min(new_frame, max_frame))
+                
+                # Update frame position
+                self.current_frame = new_frame
+                self.synchronized_frame = self.current_frame
+                self.frame_scale.set(new_frame)
+                self.update_frame()
+        except Exception as e:
+            print(f"[ERROR] Scale click failed: {str(e)}")
+            pass
+            
+    def update_frame(self):
+        """Update the displayed frame with modern UI updates"""
+        try:
+            if self.current_video_index not in self.videos:
+                return
+                
+            current_video = self.videos[self.current_video_index]
+            video = current_video['video']
+            display_name = current_video['display_name']
+            frame_count = self.frame_counts[self.current_video_index]
+            
+            # Ensure current frame is within bounds
+            self.current_frame = max(0, min(self.current_frame, frame_count - 1))
+            
+            # Get current frame from VapourSynth
+            vs_frame = video.get_frame(self.current_frame)
+            frame = self.processor.get_frame(video, self.current_frame)
+            
+            # Update frame info
+            frame_info = f"Frame: {self.current_frame + 1}/{frame_count}"
+            self.frame_info_label.config(text=frame_info)
+            
+            # Update video resolution info
+            if hasattr(vs_frame, 'width') and hasattr(vs_frame, 'height'):
+                self.video_info_label.config(text=f"Resolution: {vs_frame.width}x{vs_frame.height}")
+            
+            # Get and display frame type (P, B, I frames)
+            frame_type_text = "Frame Type: Unknown"
+            try:
+                if hasattr(vs_frame, 'props') and '_PictType' in vs_frame.props:
+                    pict_type = vs_frame.props['_PictType']
+                    if isinstance(pict_type, bytes):
+                        pict_type = pict_type.decode('utf-8', errors='ignore')
+                    frame_type_text = f"Frame Type: {pict_type}"
+            except:
+                pass
+            self.frame_type_label.config(text=frame_type_text)
+            
+            # Update selection info
+            self.selection_count_label.config(text=f"Selected: {len(self.selected_frames)}")
+            
+            # Display frame
+            self.display_frame(frame)
+            
+            # Update controls
+            self.frame_var.set(self.current_frame)
+            self.frame_scale.set(self.current_frame)
+            
+            # Update selected frames listbox
+            self.update_selected_listbox()
+            
+        except Exception as e:
+            self.frame_info_label.config(text=f"Error: {str(e)}")
+            print(f"[ERROR] Frame update failed: {str(e)}")
+    
+    def display_frame(self, frame):
+        """Display frame filling the entire canvas without black/grey bars"""
+        try:
+            import numpy as np
+            from PIL import Image, ImageTk
+            
+            # Get canvas dimensions immediately
+            self.video_canvas.update_idletasks()
+            canvas_width = self.video_canvas.winfo_width()
+            canvas_height = self.video_canvas.winfo_height()
+            
+            if canvas_width <= 1 or canvas_height <= 1:
+                return  # Canvas not ready yet
+            
+            # Clear canvas efficiently
+            self.video_canvas.delete("all")
+            
+            # Convert frame to numpy array efficiently
+            if isinstance(frame, np.ndarray):
+                arr = frame
+            else:
+                self.show_error_on_canvas("Unsupported frame format")
+                return
+            
+            # Ensure proper format for faster processing
+            if arr.dtype != np.uint8:
+                arr = np.clip(arr, 0, 255).astype(np.uint8)
+            
+            # Create PIL image based on array shape
+            if arr.ndim == 3 and arr.shape[2] == 3:
+                img = Image.fromarray(arr, 'RGB')
+            elif arr.ndim == 2:
+                img = Image.fromarray(arr, 'L')
+            else:
+                self.show_error_on_canvas(f"Unsupported array shape: {arr.shape}")
+                return
+            
+            # Calculate scaling to fill entire canvas while maintaining aspect ratio
+            # This eliminates black/grey bars by using the full canvas space
+            video_aspect = img.width / img.height
+            canvas_aspect = canvas_width / canvas_height
+            
+            if video_aspect > canvas_aspect:
+                # Video is wider than canvas - fit to height, crop width if needed
+                scale = canvas_height / img.height
+                display_width = int(img.width * scale)
+                display_height = canvas_height
+            else:
+                # Video is taller than canvas - fit to width, crop height if needed
+                scale = canvas_width / img.width
+                display_width = canvas_width
+                display_height = int(img.height * scale)
+            
+            # Resize image to fill canvas completely
+            if hasattr(self, '_resizing') and self._resizing:
+                # Use faster resampling during active resize
+                resized_img = img.resize((display_width, display_height), Image.NEAREST)
+            else:
+                # Use high quality resampling for final display
+                resized_img = img.resize((display_width, display_height), Image.LANCZOS)
+            
+            # Convert to PhotoImage for display
+            self.photo = ImageTk.PhotoImage(resized_img)
+            
+            # Center the image on canvas (will fill entire canvas)
+            x = canvas_width // 2
+            y = canvas_height // 2
+            
+            # Display the image filling the entire canvas
+            self.video_canvas.create_image(x, y, image=self.photo, anchor='center')
+            
+        except Exception as e:
+            self.show_error_on_canvas(f"Display error: {str(e)}")
+            print(f"[ERROR] Display frame failed: {str(e)}")
+    
+    def show_error_on_canvas(self, error_msg):
+        """Show error message on canvas"""
+        self.video_canvas.delete("all")
+        canvas_width = self.video_canvas.winfo_width()
+        canvas_height = self.video_canvas.winfo_height()
+        
+        self.video_canvas.create_text(
+            canvas_width // 2, canvas_height // 2,
+            text=error_msg, fill='red', font=('Arial', 12, 'bold'),
+            anchor='center', width=canvas_width - 20
+        )
+    
+    def _update_frame_position(self):
+        """Helper to update synchronized frame position across all videos"""
+        self.synchronized_frame = self.current_frame
+    
+    # Navigation methods
+    def go_to_first(self):
+        """Go to first frame"""
+        self.current_frame = 0
+        self._update_frame_position()
+        self.update_frame()
+    
+    def go_to_last(self):
+        """Go to last frame"""
+        if self.current_video_index in self.frame_counts:
+            self.current_frame = max(0, self.frame_counts[self.current_video_index] - 1)
+            self._update_frame_position()
+            self.update_frame()
+    
+    def prev_frame(self):
+        """Go to previous frame"""
+        if self.current_frame > 0:
+            self.current_frame -= 1
+            self._update_frame_position()
+            self.update_frame()
+    
+    def next_frame(self):
+        """Go to next frame"""
+        if self.current_video_index in self.frame_counts:
+            if self.current_frame < self.frame_counts[self.current_video_index] - 1:
+                self.current_frame += 1
+                self._update_frame_position()
+                self.update_frame()
+    
+    def prev_100(self):
+        """Go back 100 frames"""
+        self.current_frame = max(0, self.current_frame - 100)
+        self._update_frame_position()
+        self.update_frame()
+    
+    def next_100(self):
+        """Go forward 100 frames"""
+        if self.current_video_index in self.frame_counts:
+            self.current_frame = min(
+                self.frame_counts[self.current_video_index] - 1, 
+                self.current_frame + 100
+            )
+            self._update_frame_position()
+            self.update_frame()
+    
+    def prev_1000(self):
+        """Go back 1000 frames"""
+        self.current_frame = max(0, self.current_frame - 1000)
+        self._update_frame_position()
+        self.update_frame()
+    
+    def next_1000(self):
+        """Go forward 1000 frames"""
+        if self.current_video_index in self.frame_counts:
+            self.current_frame = min(
+                self.frame_counts[self.current_video_index] - 1, 
+                self.current_frame + 1000
+            )
+            self._update_frame_position()
+            self.update_frame()
+    
+    def go_to_frame(self):
+        """Go to specific frame"""
+        try:
+            frame_num = self.frame_var.get()
+            if self.current_video_index in self.frame_counts:
+                max_frame = self.frame_counts[self.current_video_index] - 1
+                if 0 <= frame_num <= max_frame:
+                    self.current_frame = frame_num
+                    self._update_frame_position()
+                    self.update_frame()
+        except:
+            pass
+    
+    # Frame selection methods
+    def add_current_frame(self):
+        """Add current frame to selection"""
+        if self.current_frame not in self.selected_frames:
+            self.selected_frames.append(self.current_frame)
+            self.selected_frames.sort()
+            self.update_frame()  # Refresh to show selection indicator
+    
+    def remove_current_frame(self):
+        """Remove current frame from selection"""
+        if self.current_frame in self.selected_frames:
+            self.selected_frames.remove(self.current_frame)
+            self.update_frame()  # Refresh to remove selection indicator
+    
+    def clear_selection(self):
+        """Clear frame selection"""
+        self.selected_frames.clear()
+        self.update_frame()  # Refresh display
+    
+    def quick_select(self, interval):
+        """Quick select frames at regular intervals"""
+        if self.current_video_index in self.frame_counts:
+            frame_count = self.frame_counts[self.current_video_index]
+            new_frames = list(range(0, frame_count, interval))
+            
+            # Add to existing selection (remove duplicates)
+            all_frames = set(self.selected_frames + new_frames)
+            self.selected_frames = sorted(list(all_frames))
+            
+            self.update_frame()
+            messagebox.showinfo("Frames Added", f"Added {len(new_frames)} frames (every {interval} frames)")
+    
+    def show_selected_frames(self):
+        """Show selected frames in a dialog"""
+        if not self.selected_frames:
+            messagebox.showinfo("No Selection", "No frames have been selected yet.")
+            return
+        
+        # Create dialog to show selected frames
+        dialog = tk.Toplevel(self.window)
+        dialog.title("Selected Frames")
+        dialog.geometry("600x400")
+        dialog.resizable(True, True)
+        dialog.transient(self.window)
+        
+        # Frame list
+        frame = ttk.Frame(dialog)
+        frame.pack(fill='both', expand=True, padx=10, pady=10)
+        
+        ttk.Label(frame, text=f"Selected Frames ({len(self.selected_frames)} total):", 
+                 font=('Arial', 12, 'bold')).pack(anchor='w', pady=(0, 10))
+        
+        # Text widget with scrollbar
+        text_frame = ttk.Frame(frame)
+        text_frame.pack(fill='both', expand=True, pady=(0, 10))
+        
+        text_widget = tk.Text(text_frame, wrap='word', height=15)
+        scrollbar = ttk.Scrollbar(text_frame, orient='vertical', command=text_widget.yview)
+        text_widget.configure(yscrollcommand=scrollbar.set)
+        
+        # Display frames in a nice format
+        frames_text = ""
+        for i, frame_num in enumerate(self.selected_frames):
+            if i > 0 and i % 10 == 0:
+                frames_text += "\n"
+            frames_text += f"{frame_num + 1:6d}  "
+        
+        text_widget.insert('1.0', frames_text)
+        text_widget.config(state='disabled')
+        
+        text_widget.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+        
+        # Close button
+        ttk.Button(frame, text="Close", command=dialog.destroy).pack()
+    
+    def update_selected_listbox(self):
+        """Update the selected frames dropdown with compact format"""
+        # Clear dropdown
+        self.selected_frames_dropdown['values'] = []
+        
+        if not self.selected_frames:
+            self.selected_frames_var.set("No frames selected")
+            self.selected_frames_dropdown['values'] = ["No frames selected"]
+        else:
+            # Create compact display format
+            sorted_frames = sorted(self.selected_frames)
+            frame_list = [f"Frame {frame + 1}" for frame in sorted_frames]
+            
+            # Show first few and total count if many frames
+            if len(frame_list) <= 10:
+                display_values = frame_list
+            else:
+                display_values = frame_list[:8] + [f"... and {len(frame_list) - 8} more"]
+            
+            self.selected_frames_dropdown['values'] = display_values
+            self.selected_frames_var.set(f"{len(self.selected_frames)} frames selected")
+    
+    def update_selected_label(self):
+        """Update the selected frames label"""
+        if self.selected_frames:
+            if len(self.selected_frames) <= 10:
+                frames_text = ", ".join(str(f + 1) for f in self.selected_frames)
+            else:
+                frames_text = f"{', '.join(str(f + 1) for f in self.selected_frames[:5])}, ... , {', '.join(str(f + 1) for f in self.selected_frames[-5:])}"
+            self.selected_label.config(text=f"Selected frames ({len(self.selected_frames)}): {frames_text}")
+        else:
+            self.selected_label.config(text="Selected frames: None")
+    
+    def use_selected_frames(self):
+        """Use selected frames and close"""
+        if not self.selected_frames:
+            result = messagebox.askyesno(
+                "No Frames Selected", 
+                "No frames have been selected. Do you want to continue without frame selection?\n\n"
+                "This will use the default frame selection method."
+            )
+            if not result:
+                return
+        
+        # Store selected frames in parent for later use
+        if hasattr(self.parent, 'preview_selected_frames'):
+            self.parent.preview_selected_frames = self.selected_frames.copy()
+        
+        # Mark frames as successfully submitted
+        self.frames_submitted = True
+        
+        messagebox.showinfo(
+            "Frames Selected", 
+            f"Selected {len(self.selected_frames)} frames for screenshot generation.\n\n"
+            "The frame selection and interval settings will be automatically updated."
+        )
+        
+        self.window.destroy()
+    
+    def close_preview(self):
+        """Close preview without using selected frames"""
+        # Only clear frames if they weren't properly submitted via "Use Selected"
+        if not getattr(self, 'frames_submitted', False):
+            self.selected_frames.clear()
+            if hasattr(self.parent, 'preview_selected_frames'):
+                self.parent.preview_selected_frames = []
+            print("[INFO] Preview closed without using selected frames")
+        else:
+            print(f"[INFO] Preview closed with {len(self.selected_frames)} frames submitted")
+        self.window.destroy()
+
 
 def main():
     """Main application entry point"""

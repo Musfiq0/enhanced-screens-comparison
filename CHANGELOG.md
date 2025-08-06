@@ -5,6 +5,29 @@ All notable changes to the Enhanced Screenshot Comparison Tool will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.0] - 2025-08-06
+
+### 🚀 Added
+- **Video Preview** - Enhanced video preview system across multiple videos
+- **Mouse Side Button Navigation** - Quick video switching using mouse side buttons (Button-4/Button-5) for improved workflow
+- **CLI Preview Integration** - Embedded GUI preview window accessible via `--preview` flag in CLI mode
+- **Console Preview Fallback** - Simple text-based frame navigation for systems without GUI support
+- **Cross-Platform Mouse Support** - Universal mouse button compatibility across Windows, macOS, and Linux
+
+### 🎯 Improved
+- **Preview System Architecture** - Unified preview infrastructure across GUI, CLI, and console modes
+- **Error Handling** - Comprehensive try-catch blocks around mouse button bindings and preview operations
+- **Graceful Fallbacks** - Automatic degradation from GUI preview to console-based navigation when needed
+- **User Experience** - Consistent preview functionality regardless of interaction mode (GUI/CLI/console)
+
+### 🔄 Changed
+- **CLI Preview Implementation** - Now uses GUI components with console fallback instead of separate CLI-only preview
+- **Function Organization** - Moved preview functions to proper location in code for correct definition order
+
+### 🔒 Security
+- **Enhanced Error Handling** - Added safety try-catch blocks to prevent crashes from unsupported mouse button events
+- **Robust Fallback System** - Multiple layers of error handling ensure application continues functioning even if preview components fail
+
 ## [3.4.0] - 2025-08-02
 
 ### 🚀 Added

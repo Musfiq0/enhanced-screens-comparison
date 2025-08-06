@@ -235,7 +235,60 @@ class VapourSynthProcessor(VideoProcessor):
         
     def get_frame(self, video, frame_number: int):
         """Get specific frame from VapourSynth clip"""
-        return video[frame_number:frame_number+1]
+        import numpy as np
+        
+        try:
+            # Get the frame from VapourSynth
+            frame_vs = video.get_frame(frame_number)
+            
+            # Convert to RGB first to standardize format
+            if frame_vs.format.name != 'RGB24':
+                # Convert to RGB24 for consistent processing
+                rgb_clip = core.resize.Bicubic(video, format=vs.RGB24)
+                frame_vs = rgb_clip.get_frame(frame_number)
+            
+            # Use the proper VapourSynth frame conversion method
+            # This avoids the PEP 3118 buffer format issues
+            height = frame_vs.height
+            width = frame_vs.width
+            
+            # Extract data using array() method instead of asarray with get_read_ptr
+            # This is the correct way for newer VapourSynth versions
+            frame_array = np.array(frame_vs)
+            
+            # VapourSynth returns frames in (plane, height, width) format for RGB
+            # We need to transpose to (height, width, plane) for standard image format
+            if frame_array.ndim == 3 and frame_array.shape[0] == 3:
+                # Transpose from (3, height, width) to (height, width, 3)
+                arr = frame_array.transpose(1, 2, 0)
+            elif frame_array.ndim == 2:
+                # Grayscale frame - add channel dimension
+                arr = np.expand_dims(frame_array, axis=2)
+                arr = np.repeat(arr, 3, axis=2)  # Convert to RGB
+            else:
+                # Unexpected format, try to handle it
+                arr = frame_array
+            
+            # Ensure data type is uint8
+            if arr.dtype != np.uint8:
+                arr = np.clip(arr, 0, 255).astype(np.uint8)
+            
+            return arr
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to get frame {frame_number}: {e}")
+            import traceback
+            traceback.print_exc()
+            # Return a black frame as fallback
+            return np.zeros((480, 640, 3), dtype=np.uint8)
+    
+    # DEPRECATED: VSPreview CLI integration - replaced with embedded preview
+    # def show_vspreview(self, videos, selected_frames=None):
+    #     """Show video preview using VSPreview - DEPRECATED"""
+    #     # This method has been replaced with embedded VideoPreviewWindow
+    #     # in gui_app.py for better user experience
+    #     pass
+            return None, None
         
     def resize_frame(self, frame, width: int, height: int):
         """Resize frame using VapourSynth"""
@@ -438,6 +491,141 @@ def create_video_processor():
 # Global processor instance
 processor = create_video_processor()
 colored_print(f"[TOOL] Video processor initialized: {processor.mode.upper()} mode", Colors.GREEN, bold=True)
+
+# ===============================================================================
+# PREVIEW FUNCTIONS
+# ===============================================================================
+
+def show_cli_preview(videos, comparison_type):
+    """
+    Show CLI-based video preview using GUI VideoPreviewWindow for frame selection
+    
+    Args:
+        videos: List of video configurations
+        comparison_type: 'multiple_sources' or 'source_encode'
+        
+    Returns:
+        List of selected frame numbers or None if no frames selected
+    """
+    try:
+        # Try to import and use the GUI preview window
+        try:
+            import tkinter as tk
+            from gui_app import VideoPreviewWindow
+            
+            colored_print(f"\n[🎬] Launching embedded video preview for {comparison_type}...", Colors.CYAN)
+            
+            # Create minimal tkinter root for the preview window
+            root = tk.Tk()
+            root.withdraw()  # Hide the main window
+            
+            # Create processor
+            processor = create_video_processor()
+            
+            # Launch the video preview window
+            preview_window = VideoPreviewWindow(root, videos, processor)
+            
+            # Wait for the window to close
+            root.wait_window(preview_window.window)
+            
+            # Get selected frames from the window
+            if hasattr(preview_window, 'selected_frames') and preview_window.selected_frames:
+                selected_frames = preview_window.selected_frames.copy()
+                colored_print(f"[✅] {len(selected_frames)} frames selected from preview", Colors.GREEN)
+                root.destroy()
+                return selected_frames
+            else:
+                colored_print("[ℹ️] No frames selected from preview", Colors.YELLOW)
+                root.destroy()
+                return None
+                
+        except ImportError:
+            colored_print("[❌] GUI preview not available, tkinter not found", Colors.RED)
+            return None
+        except Exception as gui_error:
+            colored_print(f"[❌] GUI preview failed: {gui_error}", Colors.RED)
+            colored_print("[ℹ️] Falling back to console-based preview", Colors.YELLOW)
+            
+            # Fallback to simple console preview for the first video
+            if videos:
+                return show_simple_console_preview(videos[0])
+            return None
+            
+    except Exception as e:
+        colored_print(f"[❌] CLI preview error: {e}", Colors.RED)
+        return None
+
+def show_simple_console_preview(video_config):
+    """
+    Simple console-based frame preview for CLI fallback
+    """
+    try:
+        colored_print(f"\n[🎬] Console Preview Mode for {video_config.get('name', 'Video')}", Colors.CYAN)
+        colored_print("[💡] This is a simplified preview. Use 'n/p' to navigate, 'a' to add frames, 'q' to quit", Colors.BLUE)
+        
+        processor = create_video_processor()
+        video = processor.load_video(video_config['path'])
+        frame_count = processor.get_frame_count(video)
+        
+        preview_frames = []
+        current_frame = 0
+        
+        while True:
+            try:
+                # Show frame info
+                frame_info = f"Frame: {current_frame + 1}/{frame_count}"
+                colored_print(f"[PREVIEW] {frame_info}", Colors.WHITE, bold=True)
+                
+                if preview_frames:
+                    selected_str = ", ".join(str(f + 1) for f in sorted(preview_frames))
+                    colored_print(f"[SELECTED] Frames: {selected_str}", Colors.YELLOW)
+                
+                # Get user input
+                nav = input("Navigation (n/p/a/q) or frame number: ").strip().lower()
+                
+                if nav == 'n' and current_frame < frame_count - 1:
+                    current_frame += 1
+                elif nav == 'p' and current_frame > 0:
+                    current_frame -= 1
+                elif nav == 'a':
+                    if current_frame not in preview_frames:
+                        preview_frames.append(current_frame)
+                        colored_print(f"[ADDED] Frame {current_frame + 1} added to selection!", Colors.GREEN)
+                    else:
+                        colored_print(f"[INFO] Frame {current_frame + 1} already selected.", Colors.BLUE)
+                elif nav == 'q':
+                    break
+                elif nav.isdigit():
+                    try:
+                        target_frame = int(nav) - 1  # Convert to 0-based
+                        if 0 <= target_frame < frame_count:
+                            current_frame = target_frame
+                        else:
+                            colored_print(f"[ERROR] Invalid frame number. Range: 1-{frame_count}", Colors.RED)
+                    except ValueError:
+                        colored_print("[ERROR] Invalid input.", Colors.RED)
+                else:
+                    colored_print("[INFO] Use: n=next, p=previous, a=add frame, q=quit, or enter frame number", Colors.CYAN)
+            
+            except Exception as e:
+                colored_print(f"[ERROR] Could not process frame: {e}", Colors.RED)
+                break
+        
+        if preview_frames:
+            preview_frames.sort()
+            colored_print(f"[✅] Selected {len(preview_frames)} frames", Colors.GREEN, bold=True)
+            return preview_frames
+        else:
+            colored_print("[ℹ️] No frames selected", Colors.YELLOW)
+            return None
+            
+    except Exception as e:
+        colored_print(f"[❌] Console preview failed: {e}", Colors.RED)
+        return None
+
+# ===============================================================================
+# UPLOAD FUNCTIONS
+# ===============================================================================
 
 def _get_slowpics_header(content_length: str, content_type: str, sess: Session) -> Dict[str, str]:
     """
@@ -717,6 +905,104 @@ def get_multiple_sources_config():
         source_name = input(f"Enter display name for this source (default: {default_name}): ").strip()
         if not source_name:
             source_name = default_name
+
+        # Preview option
+        preview_frames = []
+        preview_choice = input(f"Would you like to preview {source_name} and select frames? (y/n): ").strip().lower()
+        if preview_choice == 'y':
+            try:
+                colored_print(f"[PREVIEW] Loading {source_name}...", Colors.CYAN)
+                processor = create_video_processor()
+                video = processor.load_video(video_path)
+                frame_count = processor.get_frame_count(video)
+                
+                colored_print(f"[PREVIEW] Video loaded. Total frames: {frame_count}", Colors.GREEN)
+                colored_print("[PREVIEW] Navigation: n=next, p=previous, a=add frame, q=quit preview", Colors.BLUE)
+                
+                current_frame = 0
+                
+                while True:
+                    try:
+                        frame = processor.get_frame(video, current_frame)
+                        
+                        # Get frame info
+                        frame_info = f"Frame: {current_frame + 1}/{frame_count} | Display: {source_name}"
+                        
+                        # Try to get frame type (VapourSynth specific)
+                        try:
+                            if hasattr(frame, 'props') and '_PictType' in frame.props:
+                                pict_type = frame.props['_PictType'].decode('utf-8', errors='ignore')
+                                frame_info += f" | Type: {pict_type}"
+                        except:
+                            pass
+                        
+                        colored_print(f"[PREVIEW] {frame_info}", Colors.WHITE, bold=True)
+                        
+                        # Show current selected frames
+                        if preview_frames:
+                            selected_str = ", ".join(str(f + 1) for f in sorted(preview_frames))
+                            colored_print(f"[SELECTED] Frames: {selected_str}", Colors.YELLOW)
+                        
+                        # Try to show frame as image (if possible)
+                        try:
+                            import numpy as np
+                            from PIL import Image
+                            
+                            if hasattr(frame, 'get_frame'):
+                                vs_frame = frame.get_frame(0)
+                                arr = np.asarray(vs_frame)
+                                if arr.ndim == 3 and arr.shape[0] == 3:
+                                    arr = arr.transpose(1, 2, 0)
+                            else:
+                                arr = frame
+                                if len(arr.shape) == 3:
+                                    arr = arr[:, :, ::-1]  # BGR to RGB
+                                    
+                            img = Image.fromarray(arr.astype(np.uint8), 'RGB')
+                            img.show()
+                        except Exception as e:
+                            colored_print(f"[WARN] Could not display image: {e}", Colors.YELLOW)
+                        
+                        # Get user input
+                        nav = input("Navigation (n/p/a/q) or frame number: ").strip().lower()
+                        
+                        if nav == 'n' and current_frame < frame_count - 1:
+                            current_frame += 1
+                        elif nav == 'p' and current_frame > 0:
+                            current_frame -= 1
+                        elif nav == 'a':
+                            if current_frame not in preview_frames:
+                                preview_frames.append(current_frame)
+                                colored_print(f"[ADDED] Frame {current_frame + 1} added to selection!", Colors.GREEN)
+                            else:
+                                colored_print(f"[INFO] Frame {current_frame + 1} already selected.", Colors.BLUE)
+                        elif nav == 'q':
+                            break
+                        elif nav.isdigit():
+                            try:
+                                target_frame = int(nav) - 1  # Convert to 0-based
+                                if 0 <= target_frame < frame_count:
+                                    current_frame = target_frame
+                                else:
+                                    colored_print(f"[ERROR] Invalid frame number. Range: 1-{frame_count}", Colors.RED)
+                            except ValueError:
+                                colored_print("[ERROR] Invalid input.", Colors.RED)
+                        else:
+                            colored_print("[INFO] Use: n=next, p=previous, a=add frame, q=quit, or enter frame number", Colors.CYAN)
+                    
+                    except Exception as e:
+                        colored_print(f"[ERROR] Could not get frame: {e}", Colors.RED)
+                        break
+                        
+                if preview_frames:
+                    preview_frames.sort()
+                    colored_print(f"[PREVIEW] Selected {len(preview_frames)} frames for {source_name}", Colors.GREEN, bold=True)
+                else:
+                    colored_print(f"[PREVIEW] No frames selected for {source_name}", Colors.YELLOW)
+                    
+            except Exception as e:
+                colored_print(f"[ERROR] Preview failed: {e}", Colors.RED)
+                preview_frames = []
         
         # Get processing options
         print(f"Processing options for {source_name}:")
@@ -804,11 +1090,12 @@ def get_multiple_sources_config():
             'pad_start': pad_start,
             'pad_end': pad_end,
             'crop': video_crop,  # Now includes cropping for multiple sources
-            'resize': None  # Will be set in common resize config
+            'resize': None,  # Will be set in common resize config
+            'preview_selected_frames': preview_frames  # Add preview frames
         })
     
     # Get common screenshot and upload options
-    screenshot_config = get_screenshot_and_upload_config()
+    screenshot_config = get_screenshot_and_upload_config(videos)
     
     # Get resize configuration for multiple sources
     resize_config = get_resize_config(videos)
@@ -1147,8 +1434,26 @@ def get_source_vs_encode_config():
                 elif resize_config['resize_method'] == 'common':
                     video['resize'] = resize_config.get('common_resolution')
     
+    # Video preview option
+    print("\n--- Video Preview (Optional) ---")
+    print("Preview videos to select specific frames for comparison")
+    while True:
+        preview_choice = input("Do you want to preview videos and select frames? (y/N): ").strip().lower()
+        if preview_choice in ['y', 'yes']:
+            preview_frames = show_cli_preview(videos, "source_encode")
+            if preview_frames:
+                # Add preview frames to all videos
+                for video in videos:
+                    video['preview_selected_frames'] = preview_frames
+                colored_print(f"[✅] {len(preview_frames)} frames selected from preview", Colors.GREEN)
+            break
+        elif preview_choice in ['n', 'no', '']:
+            break
+        else:
+            print("Please enter 'y' for yes or 'n' for no.")
+    
     # Get common screenshot and upload options
-    screenshot_config = get_screenshot_and_upload_config()
+    screenshot_config = get_screenshot_and_upload_config(videos)
     
     return {
         'comparison_type': 'source_vs_encode',
@@ -1157,47 +1462,64 @@ def get_source_vs_encode_config():
         **screenshot_config
     }
 
-def get_screenshot_and_upload_config():
+def get_screenshot_and_upload_config(videos=None):
     """Get screenshot options and upload configuration"""
     print("\n--- Screenshot Options ---")
     
-    # Frame selection method
-    print("Choose frame selection method:")
-    print("1. Use frame interval (e.g., every 150 frames)")
-    print("2. Specify custom frame numbers")
+    # Check if any video has preview-selected frames
+    preview_frames = []
+    if videos:
+        for video in videos:
+            if 'preview_selected_frames' in video and video['preview_selected_frames']:
+                preview_frames.extend(video['preview_selected_frames'])
     
-    while True:
-        try:
-            choice = int(input("Enter choice (1 or 2): "))
-            if choice in [1, 2]:
-                break
-            else:
-                print("Please enter 1 or 2.")
-        except ValueError:
-            print("Please enter a valid number.")
-    
-    if choice == 1:
-        # Frame interval
-        try:
-            frame_interval = int(input("Enter frame interval for screenshots (default: 150): ") or "150")
-        except ValueError:
-            frame_interval = 150
-            print("Invalid input, using default value (150)")
-        custom_frames = None
-    else:
-        # Custom frames
+    if preview_frames:
+        # Remove duplicates and sort
+        preview_frames = sorted(list(set(preview_frames)))
+        colored_print(f"[PREVIEW] Using {len(preview_frames)} frames selected from preview!", Colors.GREEN, bold=True)
+        colored_print(f"[FRAMES] Selected frames: {', '.join(str(f + 1) for f in preview_frames[:10])}{'...' if len(preview_frames) > 10 else ''}", Colors.CYAN)
+        
+        # Skip frame selection step
         frame_interval = None
-        custom_frames_input = input("Enter comma-separated frame numbers (e.g., 100,500,1000): ")
-        try:
-            custom_frames = [int(f.strip()) for f in custom_frames_input.split(',') if f.strip()]
-            if not custom_frames:
+        custom_frames = preview_frames
+    else:
+        # Normal frame selection process
+        print("Choose frame selection method:")
+        print("1. Use frame interval (e.g., every 150 frames)")
+        print("2. Specify custom frame numbers")
+        
+        while True:
+            try:
+                choice = int(input("Enter choice (1 or 2): "))
+                if choice in [1, 2]:
+                    break
+                else:
+                    print("Please enter 1 or 2.")
+            except ValueError:
+                print("Please enter a valid number.")
+        
+        if choice == 1:
+            # Frame interval
+            try:
+                frame_interval = int(input("Enter frame interval for screenshots (default: 150): ") or "150")
+            except ValueError:
+                frame_interval = 150
+                print("Invalid input, using default value (150)")
+            custom_frames = None
+        else:
+            # Custom frames
+            frame_interval = None
+            custom_frames_input = input("Enter comma-separated frame numbers (e.g., 100,500,1000): ")
+            try:
+                custom_frames = [int(f.strip()) for f in custom_frames_input.split(',') if f.strip()]
+                if not custom_frames:
+                    # Use default frames instead of switching to interval
+                    custom_frames = [100, 500, 1000]
+                    print("No frames provided, using default custom frames: 100, 500, 1000")
+            except ValueError:
                 # Use default frames instead of switching to interval
                 custom_frames = [100, 500, 1000]
-                print("No frames provided, using default custom frames: 100, 500, 1000")
-        except ValueError:
-            # Use default frames instead of switching to interval
-            custom_frames = [100, 500, 1000]
-            print("Invalid frame numbers, using default custom frames: 100, 500, 1000")
+                print("Invalid frame numbers, using default custom frames: 100, 500, 1000")
     
     # Get slow.pics upload options
     print("\n--- slow.pics Upload Options ---")
@@ -2650,6 +2972,72 @@ def get_processing_order_description(config, processed_videos):
 # ==============================================================================
 
 # Only run main execution code when script is executed directly, not when imported
+if __name__ == "__main__":
+    # Check for basic help/demo/version arguments only
+    if len(sys.argv) > 1:
+        arg = sys.argv[1].lower()
+        if arg in ['--help', '-h', 'help']:
+            show_help()
+            sys.exit(0)
+        elif arg in ['--demo', '-d', 'demo']:
+            show_demo()
+            sys.exit(0)
+        elif arg in ['--version', '-v']:
+            colored_print("Enhanced VapourSynth Screenshot Comparison Tool v2.0", Colors.CYAN, bold=True)
+            colored_print("Dynamic backend support with VapourSynth, OpenCV, and PIL fallbacks", Colors.CYAN)
+            sys.exit(0)
+
+    # Run in interactive mode only
+    try:
+        config = get_user_input()
+
+        # Check if this is upload-only mode
+        if config.get('upload_only', False):
+            print_header("UPLOAD ONLY MODE")
+            colored_print(f"Uploading existing screenshots to slow.pics...", Colors.BLUE, bold=True)
+            
+            # Use existing data from config
+            frames = config['frames']
+            processed_videos = config['processed_videos']
+            
+            colored_print(f"Found {len(frames)} frames and {len(processed_videos)} sources", Colors.GREEN)
+            
+            # Upload to slow.pics
+            comparison_url = upload_to_slowpics(config, frames, processed_videos)
+            if comparison_url:
+                colored_print(f"\n[🌐] Your comparison has been uploaded and opened in your browser!", Colors.GREEN, bold=True)
+            else:
+                colored_print(f"\n[📁] Screenshots are available locally in the Screenshots/ folder", Colors.BLUE, bold=True)
+            
+            colored_print("\n[✅] Upload complete!", Colors.GREEN, bold=True)
+            sys.exit(0)
+
+        # Normal screenshot generation mode
+        colored_print(f"\n[🎬] Starting {config.get('comparison_type', 'multiple_sources').replace('_', ' ').title()} processing...", Colors.CYAN, bold=True)
+        
+        # Process videos and generate screenshots
+        success = process_and_generate_screenshots(config)
+        
+        if success:
+            colored_print(f"\n[✅] All operations completed successfully!", Colors.GREEN, bold=True)
+        else:
+            colored_print(f"\n[❌] Some operations failed. Check the logs above for details.", Colors.RED, bold=True)
+            sys.exit(1)
+            
+    except KeyboardInterrupt:
+        colored_print(f"\n[⚠️] Operation cancelled by user", Colors.YELLOW, bold=True)
+        sys.exit(0)
+    except Exception as e:
+        colored_print(f"\n[❌] Unexpected error: {e}", Colors.RED, bold=True)
+        colored_print(f"[🔧] Traceback:", Colors.YELLOW)
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+# Usage:
+# Simply run: python comparev2.py
+# Follow the interactive prompts to configure your comparison
+
 if __name__ == "__main__":
     # Check for basic help/demo/version arguments only
     if len(sys.argv) > 1:

@@ -166,6 +166,12 @@ Resolution presets: 720p, 1080p, 1440p, 4k, manual
             help='Take every Nth frame in range'
         )
         
+        frame_group.add_argument(
+            '--preview',
+            action='store_true',
+            help='Show video preview with frame navigation and selection before generating screenshots'
+        )
+
         # ================================================================
         # GLOBAL PROCESSING OPTIONS
         # ================================================================
@@ -542,6 +548,26 @@ Resolution presets: 720p, 1080p, 1440p, 4k, manual
         
         return config
     
+    def handle_preview(self, config, args):
+        """Handle video preview functionality"""
+        from comparev2 import show_cli_preview
+        
+        colored_print("\n[🎬] VIDEO PREVIEW MODE", Colors.CYAN, bold=True)
+        colored_print("Navigate through frames and select frames for screenshot comparison", Colors.WHITE)
+        
+        videos = config['videos']
+        comparison_type = config['comparison_type']
+        
+        # Show preview for each video and collect selected frames
+        selected_frames = show_cli_preview(videos, comparison_type)
+        
+        if selected_frames:
+            # Update config with selected frames
+            config['custom_frames'] = selected_frames
+            colored_print(f"\n[✅] {len(selected_frames)} frames selected from preview", Colors.GREEN)
+        else:
+            colored_print("\n[ℹ️] No frames selected from preview, using default frame selection", Colors.YELLOW)
+
     def create_global_processed_videos(self, args, videos, names):
         """Create video configs using both global and individual processing settings"""
         # Get global crop and resolution settings (fallback)
@@ -646,6 +672,10 @@ Resolution presets: 720p, 1080p, 1440p, 4k, manual
         try:
             # Create configuration
             config = self.create_config(args)
+            
+            # Handle preview if requested
+            if args.preview:
+                self.handle_preview(config, args)
             
             # Save configuration if requested
             if args.save_config:
