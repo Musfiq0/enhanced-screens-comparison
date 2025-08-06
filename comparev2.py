@@ -2710,7 +2710,7 @@ def process_and_generate_screenshots(config):
     # Generate frame numbers for comparison
     total_frames = min(video['processed_frames'] for video in processed_videos)
 
-    if config['custom_frames']:
+    if config.get('custom_frames'):
         # Use custom frame numbers
         frames = [f for f in config['custom_frames'] if 0 <= f < total_frames]
         colored_print(f"\n[MODE] Using custom frames: {frames}", Colors.BLUE, bold=True)

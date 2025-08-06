@@ -407,7 +407,7 @@ Resolution presets: 720p, 1080p, 1440p, 4k, manual
         names = []
         for i, video in enumerate(videos):
             if args.mode in ['source-encode', 'se']:
-                names.append("Source" if i == 0 else f"Encode{i}")
+                names.append("Source" if i == 0 else f"Encode")
             else:
                 names.append(f"Source{i+1}")
         
@@ -531,7 +531,8 @@ Resolution presets: 720p, 1080p, 1440p, 4k, manual
             'upload_to_slowpics': args.upload,
             'no_browser': args.no_browser,
             'quiet': args.quiet,
-            'verbose': args.verbose
+            'verbose': args.verbose,
+            'frame_interval': 150  # Default frame interval for when no custom frames are specified
         }
         
         # Add custom frames if specified
@@ -567,6 +568,9 @@ Resolution presets: 720p, 1080p, 1440p, 4k, manual
             colored_print(f"\n[✅] {len(selected_frames)} frames selected from preview", Colors.GREEN)
         else:
             colored_print("\n[ℹ️] No frames selected from preview, using default frame selection", Colors.YELLOW)
+            # Ensure custom_frames is removed from config if no frames selected
+            if 'custom_frames' in config:
+                del config['custom_frames']
 
     def create_global_processed_videos(self, args, videos, names):
         """Create video configs using both global and individual processing settings"""
