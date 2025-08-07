@@ -34,7 +34,8 @@ try:
     from comparev2 import (
         detect_available_libraries, create_video_processor, upload_to_slowpics,
         apply_processing, apply_frame_processing, add_frame_info,
-        Colors, colored_print, print_header, PROCESSING_MODE
+        Colors, colored_print, print_header, PROCESSING_MODE,
+        adjust_preview_frames_for_processing
     )
     COMPARISON_CORE_AVAILABLE = True
 except ImportError as e:
@@ -502,10 +503,14 @@ class ScreenshotComparisonGUI:
         """Open the settings configuration dialog"""
         # Check if there are preview selected frames and update config before opening dialog
         if hasattr(self, 'preview_selected_frames') and self.preview_selected_frames:
-            # Auto-populate custom frames with preview selections
-            self.config['custom_frames'] = sorted(self.preview_selected_frames)
+            # Adjust preview frames for trimming/padding operations
+            adjusted_frames = adjust_preview_frames_for_processing(self.preview_selected_frames, self.videos)
+            # Auto-populate custom frames with adjusted preview selections
+            self.config['custom_frames'] = sorted(adjusted_frames)
             self.config['frame_method'] = 'custom'  # Switch to custom frame mode
-            print(f"[INFO] Using {len(self.preview_selected_frames)} frames from preview selection")
+            print(f"[INFO] Using {len(adjusted_frames)} frames from preview selection (adjusted for trim/pad)")
+            if len(adjusted_frames) != len(self.preview_selected_frames):
+                print(f"[INFO] {len(self.preview_selected_frames)} original frames → {len(adjusted_frames)} adjusted frames")
         
         dialog = SettingsDialog(self.root, self.config)
         self.root.wait_window(dialog.dialog)
@@ -737,18 +742,24 @@ class ScreenshotComparisonGUI:
             return
         
         try:
-            # Create video configurations for preview
+            # Create video configurations for preview with complete processing settings
             videos_config = []
             for video in self.videos:
                 video_config = {
                     'path': video['path'],
-                    'name': video.get('name', os.path.basename(video['path']))
+                    'name': video.get('name', os.path.basename(video['path'])),
+                    
+                    # Include all processing settings
+                    'trim_start': video.get('trim_start', 0),
+                    'trim_end': video.get('trim_end', 0),
+                    'pad_start': video.get('pad_start', 0),
+                    'pad_end': video.get('pad_end', 0),
+                    'crop': video.get('crop'),
+                    'resize': video.get('resize'),
+                    'is_source': video.get('is_source', True)
                 }
                 
-                # Add crop settings if available
-                if 'crop' in video and video['crop']:
-                    video_config['crop'] = video['crop']
-                
+                print(f"[GUI] Passing video config to preview: {video_config}")
                 videos_config.append(video_config)
             
             from comparev2 import create_video_processor
@@ -1001,9 +1012,12 @@ class ScreenshotComparisonGUI:
                         preview_frames.extend(video['preview_selected_frames'])
             
             if preview_frames:
-                # Use frames selected from preview, remove duplicates and sort
-                frames = sorted(list(set(f for f in preview_frames if 0 <= f < total_frames)))
-                self.root.after(0, lambda: self.status_label.config(text=f"Using {len(frames)} frames from preview..."))
+                # Adjust preview frames for trimming/padding operations
+                adjusted_preview_frames = adjust_preview_frames_for_processing(preview_frames, self.videos)
+                # Use adjusted frames selected from preview, remove duplicates and sort
+                frames = sorted(list(set(f for f in adjusted_preview_frames if 0 <= f < total_frames)))
+                self.root.after(0, lambda: self.status_label.config(text=f"Using {len(frames)} adjusted frames from preview..."))
+                print(f"[GUI] Preview frames: {len(preview_frames)} original → {len(frames)} adjusted")
             elif self.config['custom_frames']:
                 frames = [f for f in self.config['custom_frames'] if 0 <= f < total_frames]
             else:
@@ -2564,25 +2578,93 @@ class VideoPreviewWindow:
         self.update_frame()
         
     def load_videos(self):
-        """Load all videos for preview"""
+        """Load all videos for preview and apply processing pipeline"""
         for i, video_config in enumerate(self.videos_config):
             try:
                 file_path = video_config['path']
                 display_name = video_config.get('name', f'Video {i+1}')
                 
-                # Load video with processor
-                video = self.processor.load_video(file_path)
-                frame_count = self.processor.get_frame_count(video)
+                # Load original video with processor
+                original_video = self.processor.load_video(file_path)
+                original_frame_count = self.processor.get_frame_count(original_video)
+                
+                # Apply processing pipeline to get processed clip
+                processed_video = original_video
+                processed_frame_count = original_frame_count
+                
+                try:
+                    if self.processor.mode == "vapoursynth":
+                        # Get processing settings
+                        trim_start = video_config.get('trim_start', 0)
+                        trim_end = video_config.get('trim_end', 0)
+                        pad_start = video_config.get('pad_start', 0)
+                        pad_end = video_config.get('pad_end', 0)
+                        crop_config = video_config.get('crop')
+                        resize_config = video_config.get('resize')
+                        is_source = video_config.get('is_source', True)
+                        
+                        print(f"[PREVIEW] Processing {display_name} with settings:")
+                        print(f"[PREVIEW]   trim_start={trim_start}, trim_end={trim_end}")
+                        print(f"[PREVIEW]   pad_start={pad_start}, pad_end={pad_end}")
+                        print(f"[PREVIEW]   crop={crop_config}")
+                        print(f"[PREVIEW]   resize={resize_config}")
+                        print(f"[PREVIEW]   is_source={is_source}")
+                        
+                        # Check if any processing is needed
+                        has_processing = (trim_start > 0 or trim_end > 0 or pad_start > 0 or pad_end > 0 or 
+                                        crop_config is not None or resize_config is not None)
+                        
+                        if has_processing:
+                            # Apply processing pipeline
+                            processed_video = apply_processing(
+                                original_video,
+                                trim_start=trim_start,
+                                trim_end=trim_end,
+                                pad_start=pad_start,
+                                pad_end=pad_end,
+                                crop=crop_config,
+                                resize=resize_config,
+                                is_source=is_source
+                            )
+                            processed_frame_count = processed_video.num_frames
+                            
+                            print(f"[PREVIEW] ✅ Processing successful!")
+                            print(f"[PREVIEW]   Original: {original_frame_count} frames")
+                            print(f"[PREVIEW]   Processed: {processed_frame_count} frames")
+                            if trim_start or trim_end:
+                                print(f"[PREVIEW]   Trim: start={trim_start}, end={trim_end}")
+                            if pad_start or pad_end:
+                                print(f"[PREVIEW]   Pad: start={pad_start}, end={pad_end}")
+                            if crop_config:
+                                print(f"[PREVIEW]   Crop: {crop_config}")
+                            if resize_config:
+                                print(f"[PREVIEW]   Resize: {resize_config}")
+                                
+                            # Test the processed video by getting frame info
+                            try:
+                                test_frame = processed_video.get_frame(0)
+                                print(f"[PREVIEW]   Processed resolution: {test_frame.width}x{test_frame.height}")
+                            except Exception as frame_error:
+                                print(f"[PREVIEW]   ⚠️ Could not get frame info: {frame_error}")
+                        else:
+                            print(f"[PREVIEW] No processing needed, using original video")
+                            
+                except Exception as processing_error:
+                    print(f"[WARN] ❌ Failed to apply processing to {display_name}: {processing_error}")
+                    print(f"[WARN] Using original video for preview")
+                    import traceback
+                    traceback.print_exc()
                 
                 self.videos[i] = {
-                    'video': video,
+                    'video': processed_video,  # Store processed video for preview
+                    'original_video': original_video,  # Keep reference to original
                     'config': video_config,
                     'display_name': display_name,
                     'file_path': file_path
                 }
-                self.frame_counts[i] = frame_count
+                self.frame_counts[i] = processed_frame_count
                 
-                print(f"[PREVIEW] Loaded: {display_name} ({frame_count} frames)")
+                print(f"[PREVIEW] Loaded: {display_name} ({processed_frame_count} frames after processing)")
                 
             except Exception as e:
                 print(f"[ERROR] Failed to load {video_config['path']}: {str(e)}")
@@ -2687,6 +2769,18 @@ class VideoPreviewWindow:
         tip_label = ttk.Label(video_section, text="💡 Tip: Use mouse side buttons over preview to switch videos", 
                              font=('Segoe UI', 7), foreground='gray')
         tip_label.pack(anchor='w', pady=(2, 0))
+        
+        # Add frame adjustment notice if any video has trim/pad settings
+        has_processing = any(
+            video.get('trim_start', 0) > 0 or video.get('trim_end', 0) > 0 or 
+            video.get('pad_start', 0) > 0 or video.get('pad_end', 0) > 0 
+            for video in self.videos_config
+        )
+        if has_processing:
+            adjustment_label = ttk.Label(video_section, 
+                                       text="ℹ️ Note: Frame numbers will be adjusted for trim/pad settings", 
+                                       font=('Segoe UI', 7), foreground='orange')
+            adjustment_label.pack(anchor='w', pady=(2, 0))
         
         # Frame info section
         info_section = ttk.LabelFrame(analysis_container, text="Frame Information", padding=3)
@@ -2988,30 +3082,43 @@ class VideoPreviewWindow:
             pass
             
     def update_frame(self):
-        """Update the displayed frame with modern UI updates"""
+        """Update the displayed frame with modern UI updates using processed video"""
         try:
             if self.current_video_index not in self.videos:
+                print(f"[DEBUG] current_video_index {self.current_video_index} not in videos")
                 return
                 
             current_video = self.videos[self.current_video_index]
-            video = current_video['video']
+            video = current_video['video']  # This is now the processed video
+            video_config = current_video['config']
             display_name = current_video['display_name']
-            frame_count = self.frame_counts[self.current_video_index]
+            frame_count = self.frame_counts[self.current_video_index]  # Processed frame count
+            
+            print(f"[DEBUG] Updating frame for {display_name}")
+            print(f"[DEBUG] Frame count: {frame_count}")
+            print(f"[DEBUG] Current frame: {self.current_frame}")
             
             # Ensure current frame is within bounds
             self.current_frame = max(0, min(self.current_frame, frame_count - 1))
             
-            # Get current frame from VapourSynth
+            # Get frame from processed video
             vs_frame = video.get_frame(self.current_frame)
             frame = self.processor.get_frame(video, self.current_frame)
+            
+            print(f"[DEBUG] Got frame {self.current_frame} from video")
+            if hasattr(vs_frame, 'width') and hasattr(vs_frame, 'height'):
+                print(f"[DEBUG] Frame resolution: {vs_frame.width}x{vs_frame.height}")
             
             # Update frame info
             frame_info = f"Frame: {self.current_frame + 1}/{frame_count}"
             self.frame_info_label.config(text=frame_info)
+            print(f"[DEBUG] Set frame info: {frame_info}")
             
             # Update video resolution info
             if hasattr(vs_frame, 'width') and hasattr(vs_frame, 'height'):
-                self.video_info_label.config(text=f"Resolution: {vs_frame.width}x{vs_frame.height}")
+                resolution_info = f"Resolution: {vs_frame.width}x{vs_frame.height}"
+                self.video_info_label.config(text=resolution_info)
+                print(f"[DEBUG] Set resolution info: {resolution_info}")
             
             # Get and display frame type (P, B, I frames)
             frame_type_text = "Frame Type: Unknown"
@@ -3041,6 +3148,8 @@ class VideoPreviewWindow:
         except Exception as e:
             self.frame_info_label.config(text=f"Error: {str(e)}")
             print(f"[ERROR] Frame update failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
     
     def display_frame(self, frame):
         """Display frame filling the entire canvas without black/grey bars"""

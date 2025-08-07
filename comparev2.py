@@ -241,11 +241,52 @@ class VapourSynthProcessor(VideoProcessor):
             # Get the frame from VapourSynth
             frame_vs = video.get_frame(frame_number)
             
+            # Debug: Show original format info
+            original_format = frame_vs.format.name
+            
             # Convert to RGB first to standardize format
-            if frame_vs.format.name != 'RGB24':
-                # Convert to RGB24 for consistent processing
-                rgb_clip = core.resize.Bicubic(video, format=vs.RGB24)
-                frame_vs = rgb_clip.get_frame(frame_number)
+            if original_format != 'RGB24':
+                # Use a more robust conversion approach with proper colorspace handling
+                try:
+                    # First try simple format conversion
+                    rgb_clip = core.resize.Bicubic(video, format=vs.RGB24)
+                    frame_vs = rgb_clip.get_frame(frame_number)
+                except vs.Error as e:
+                    colored_print(f"[DEBUG] Simple RGB conversion failed for {original_format}: {e}", Colors.YELLOW)
+                    # If that fails, try with explicit colorspace conversion
+                    try:
+                        # Convert to YUV444P16 first, then to RGB with proper matrix
+                        yuv_clip = core.resize.Bicubic(video, format=vs.YUV444P16)
+                        rgb_clip = core.resize.Bicubic(yuv_clip, format=vs.RGB24, matrix_in_s="709")
+                        frame_vs = rgb_clip.get_frame(frame_number)
+                        colored_print(f"[DEBUG] Converted {original_format} via YUV444P16 with BT.709 matrix", Colors.GREEN)
+                    except vs.Error as e:
+                        colored_print(f"[DEBUG] BT.709 conversion failed: {e}", Colors.YELLOW)
+                        # Try different color matrices
+                        try:
+                            # Try with BT.470 matrix (for older content)
+                            rgb_clip = core.resize.Bicubic(video, format=vs.RGB24, matrix_in_s="470bg")
+                            frame_vs = rgb_clip.get_frame(frame_number)
+                            colored_print(f"[DEBUG] Converted {original_format} with BT.470 matrix", Colors.GREEN)
+                        except vs.Error as e:
+                            colored_print(f"[DEBUG] BT.470 conversion failed: {e}", Colors.YELLOW)
+                            try:
+                                # Try with BT.601 matrix
+                                rgb_clip = core.resize.Bicubic(video, format=vs.RGB24, matrix_in_s="170m")
+                                frame_vs = rgb_clip.get_frame(frame_number)
+                                colored_print(f"[DEBUG] Converted {original_format} with BT.601 matrix", Colors.GREEN)
+                            except vs.Error as e:
+                                colored_print(f"[DEBUG] BT.601 conversion failed: {e}", Colors.YELLOW)
+                                # Try without matrix specification (auto-detect)
+                                try:
+                                    rgb_clip = core.resize.Bicubic(video, format=vs.RGB24, matrix_in=1)
+                                    frame_vs = rgb_clip.get_frame(frame_number)
+                                    colored_print(f"[DEBUG] Converted {original_format} with auto-detect matrix", Colors.GREEN)
+                                except vs.Error as e:
+                                    colored_print(f"[DEBUG] Auto-detect conversion failed: {e}", Colors.YELLOW)
+                                    # Final fallback: use original format without conversion
+                                    colored_print(f"[WARN] Could not convert {original_format} to RGB24, using original format", Colors.YELLOW)
+                                    frame_vs = video.get_frame(frame_number)
             
             # Use the proper VapourSynth frame conversion method
             # This avoids the PEP 3118 buffer format issues
@@ -256,22 +297,50 @@ class VapourSynthProcessor(VideoProcessor):
             # This is the correct way for newer VapourSynth versions
             frame_array = np.array(frame_vs)
             
-            # VapourSynth returns frames in (plane, height, width) format for RGB
-            # We need to transpose to (height, width, plane) for standard image format
-            if frame_array.ndim == 3 and frame_array.shape[0] == 3:
-                # Transpose from (3, height, width) to (height, width, 3)
-                arr = frame_array.transpose(1, 2, 0)
+            # Handle different frame formats more robustly
+            if frame_vs.format.name == 'RGB24':
+                # RGB24 format: (3, height, width) -> (height, width, 3)
+                if frame_array.ndim == 3 and frame_array.shape[0] == 3:
+                    arr = frame_array.transpose(1, 2, 0)
+                else:
+                    arr = frame_array
+            elif frame_vs.format.name in ['YUV420P8', 'YUV422P8', 'YUV444P8', 'YUV420P10', 'YUV422P10', 'YUV444P10']:
+                # YUV format: extract Y plane for grayscale, then convert to RGB
+                if frame_array.ndim == 3:
+                    # Take Y plane (luminance) and convert to RGB
+                    y_plane = frame_array[0]  # Y plane
+                    arr = np.stack([y_plane, y_plane, y_plane], axis=2)
+                else:
+                    arr = frame_array
+                    if arr.ndim == 2:
+                        arr = np.stack([arr, arr, arr], axis=2)
             elif frame_array.ndim == 2:
                 # Grayscale frame - add channel dimension
                 arr = np.expand_dims(frame_array, axis=2)
                 arr = np.repeat(arr, 3, axis=2)  # Convert to RGB
+            elif frame_array.ndim == 3 and frame_array.shape[0] == 3:
+                # 3-plane format: transpose from (3, height, width) to (height, width, 3)
+                arr = frame_array.transpose(1, 2, 0)
             else:
                 # Unexpected format, try to handle it
+                colored_print(f"[WARN] Unexpected frame format: {frame_vs.format.name}, shape: {frame_array.shape}", Colors.YELLOW)
                 arr = frame_array
+                # Try to ensure it's 3D
+                if arr.ndim == 2:
+                    arr = np.stack([arr, arr, arr], axis=2)
             
             # Ensure data type is uint8
             if arr.dtype != np.uint8:
-                arr = np.clip(arr, 0, 255).astype(np.uint8)
+                # Handle different bit depths
+                if arr.dtype in [np.uint16, np.int16]:
+                    # 16-bit: scale down to 8-bit
+                    arr = (arr / 256).astype(np.uint8)
+                elif arr.dtype in [np.float32, np.float64]:
+                    # Float: clamp to 0-255 range
+                    arr = np.clip(arr * 255, 0, 255).astype(np.uint8)
+                else:
+                    # Other types: clamp and convert
+                    arr = np.clip(arr, 0, 255).astype(np.uint8)
             
             return arr
             
@@ -288,7 +357,6 @@ class VapourSynthProcessor(VideoProcessor):
     #     # This method has been replaced with embedded VideoPreviewWindow
     #     # in gui_app.py for better user experience
     #     pass
-            return None, None
         
     def resize_frame(self, frame, width: int, height: int):
         """Resize frame using VapourSynth"""
@@ -1462,6 +1530,74 @@ def get_source_vs_encode_config():
         **screenshot_config
     }
 
+def adjust_preview_frames_for_processing(preview_frames, video_configs):
+    """
+    Adjust preview frame numbers to account for trimming and padding operations.
+    
+    The frame mapping works as follows:
+    1. Original video: frames 0, 1, 2, ..., N
+    2. After trim_start=50: frames 50, 51, 52, ..., N become 0, 1, 2, ..., (N-50)
+    3. After pad_start=20: frames become 20, 21, 22, ..., (N-50+20)
+    
+    So: processed_frame = original_frame - trim_start + pad_start
+    
+    Args:
+        preview_frames: List of frame numbers selected in preview (from original video)
+        video_configs: List of video configurations with trim/pad settings
+        
+    Returns:
+        List of adjusted frame numbers for the processed videos
+    """
+    if not preview_frames or not video_configs:
+        return preview_frames
+    
+    # Get processing settings from the first video config
+    # In most cases, all videos will have similar or identical processing
+    first_video = video_configs[0]
+    trim_start = first_video.get('trim_start', 0)
+    trim_end = first_video.get('trim_end', 0)
+    pad_start = first_video.get('pad_start', 0)
+    pad_end = first_video.get('pad_end', 0)
+    
+    # If no processing is applied, return original frames
+    if trim_start == 0 and trim_end == 0 and pad_start == 0 and pad_end == 0:
+        return preview_frames
+    
+    adjusted_frames = []
+    
+    colored_print(f"[ADJUST] Adjusting preview frames for processing:", Colors.YELLOW)
+    colored_print(f"[ADJUST] trim_start={trim_start}, trim_end={trim_end}, pad_start={pad_start}, pad_end={pad_end}", Colors.WHITE)
+    
+    for original_frame in preview_frames:
+        # Calculate the adjusted frame number
+        # Step 1: Account for trimming from start
+        if original_frame < trim_start:
+            # This frame was trimmed away, skip it
+            colored_print(f"[ADJUST] Frame {original_frame} was trimmed (< trim_start={trim_start}), skipping", Colors.YELLOW)
+            continue
+            
+        adjusted_frame = original_frame - trim_start
+        
+        # Step 2: Account for padding at start  
+        adjusted_frame = adjusted_frame + pad_start
+        
+        # Validate the adjusted frame is reasonable
+        if adjusted_frame >= 0:
+            adjusted_frames.append(adjusted_frame)
+            if len(adjusted_frames) <= 5:  # Show details for first few frames
+                colored_print(f"[ADJUST] Frame {original_frame} → {adjusted_frame}", Colors.CYAN)
+        else:
+            colored_print(f"[ADJUST] Frame {original_frame} resulted in negative frame {adjusted_frame}, skipping", Colors.RED)
+    
+    if len(adjusted_frames) != len(preview_frames):
+        colored_print(f"[ADJUST] {len(preview_frames) - len(adjusted_frames)} frames were excluded due to trimming", Colors.YELLOW)
+    
+    if not adjusted_frames:
+        colored_print(f"[WARN] No valid frames remain after adjustment! Using fallback frame 0", Colors.RED)
+        adjusted_frames = [0]
+    
+    return sorted(adjusted_frames)
+
 def get_screenshot_and_upload_config(videos=None):
     """Get screenshot options and upload configuration"""
     print("\n--- Screenshot Options ---")
@@ -1474,14 +1610,46 @@ def get_screenshot_and_upload_config(videos=None):
                 preview_frames.extend(video['preview_selected_frames'])
     
     if preview_frames:
+        # Adjust preview frames for trimming/padding operations
+        adjusted_preview_frames = adjust_preview_frames_for_processing(preview_frames, videos)
+        
+        # Check if all videos have the same processing settings
+        if len(videos) > 1:
+            first_video = videos[0]
+            consistent_processing = True
+            for video in videos[1:]:
+                if (video.get('trim_start', 0) != first_video.get('trim_start', 0) or
+                    video.get('trim_end', 0) != first_video.get('trim_end', 0) or
+                    video.get('pad_start', 0) != first_video.get('pad_start', 0) or
+                    video.get('pad_end', 0) != first_video.get('pad_end', 0)):
+                    consistent_processing = False
+                    break
+            
+            if not consistent_processing:
+                colored_print(f"[WARN] Videos have different trim/pad settings!", Colors.YELLOW, bold=True)
+                colored_print(f"[WARN] Frame adjustment based on first video: {first_video['name']}", Colors.YELLOW)
+                colored_print(f"[WARN] Preview frames may not align perfectly with other videos", Colors.YELLOW)
+        
         # Remove duplicates and sort
-        preview_frames = sorted(list(set(preview_frames)))
-        colored_print(f"[PREVIEW] Using {len(preview_frames)} frames selected from preview!", Colors.GREEN, bold=True)
-        colored_print(f"[FRAMES] Selected frames: {', '.join(str(f + 1) for f in preview_frames[:10])}{'...' if len(preview_frames) > 10 else ''}", Colors.CYAN)
+        adjusted_preview_frames = sorted(list(set(adjusted_preview_frames)))
+        colored_print(f"[PREVIEW] Using {len(adjusted_preview_frames)} frames selected from preview!", Colors.GREEN, bold=True)
+        
+        # Show frame mapping summary if frames were adjusted
+        first_video = videos[0]
+        if (first_video.get('trim_start', 0) > 0 or first_video.get('pad_start', 0) > 0):
+            colored_print(f"[MAPPING] Preview frame adjustment summary:", Colors.BLUE, bold=True)
+            sample_original = sorted(list(set(preview_frames)))[:5]
+            sample_adjusted = adjusted_preview_frames[:5]
+            for i, (orig, adj) in enumerate(zip(sample_original, sample_adjusted)):
+                colored_print(f"[MAPPING]   Preview frame {orig + 1} → Processed frame {adj + 1}", Colors.CYAN)
+            if len(adjusted_preview_frames) > 5:
+                colored_print(f"[MAPPING]   ... and {len(adjusted_preview_frames) - 5} more frames", Colors.CYAN)
+        
+        colored_print(f"[FRAMES] Final frames: {', '.join(str(f + 1) for f in adjusted_preview_frames[:10])}{'...' if len(adjusted_preview_frames) > 10 else ''}", Colors.CYAN)
         
         # Skip frame selection step
         frame_interval = None
-        custom_frames = preview_frames
+        custom_frames = adjusted_preview_frames
     else:
         # Normal frame selection process
         print("Choose frame selection method:")
