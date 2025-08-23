@@ -119,11 +119,37 @@ def try_import_numpy():
     """Try to import numpy"""
     global np, NUMPY_AVAILABLE
     try:
+        # Fix for PyInstaller CPU dispatcher issue
+        import os
+        if hasattr(os, 'environ'):
+            os.environ.setdefault('NPY_DISABLE_CPU_FEATURES', '')
+            
         import numpy as np_module
         np = np_module
         NUMPY_AVAILABLE = True
         colored_print("[OK] NumPy detected and imported successfully", Colors.GREEN)
         return True
+    except RuntimeError as e:
+        if "CPU dispatcher tracer already" in str(e):
+            colored_print("[WARN] NumPy CPU dispatcher issue detected - attempting fix...", Colors.YELLOW)
+            try:
+                # Try alternative import method for PyInstaller environment
+                import sys
+                if hasattr(sys, '_MEIPASS'):
+                    # We're in a PyInstaller bundle, use more careful import
+                    import numpy as np_module
+                    np = np_module
+                    NUMPY_AVAILABLE = True
+                    colored_print("[OK] NumPy imported successfully with fix", Colors.GREEN)
+                    return True
+                else:
+                    raise e
+            except Exception as e2:
+                colored_print(f"[ERROR] NumPy fix failed: {e2}", Colors.RED)
+                return False
+        else:
+            colored_print(f"[ERROR] NumPy runtime error: {e}", Colors.RED)
+            return False
     except ImportError as e:
         colored_print(f"[ERROR] NumPy not available: {e}", Colors.RED)
         return False
@@ -158,8 +184,15 @@ def detect_available_libraries():
         colored_print("  - PIL + NumPy: pip install pillow numpy", Colors.WHITE)
         sys.exit(1)
 
-# Detect libraries on import
-PROCESSING_MODE = detect_available_libraries()
+# Initialize processing mode - but handle it safely for PyInstaller
+PROCESSING_MODE = None
+
+def initialize_processing_mode():
+    """Initialize processing mode lazily to avoid import issues"""
+    global PROCESSING_MODE
+    if PROCESSING_MODE is None:
+        PROCESSING_MODE = detect_available_libraries()
+    return PROCESSING_MODE
 
 # ===============================================================================
 # VIDEO PROCESSING BACKEND CLASSES
@@ -235,7 +268,9 @@ class VapourSynthProcessor(VideoProcessor):
         
     def get_frame(self, video, frame_number: int):
         """Get specific frame from VapourSynth clip"""
-        import numpy as np
+        global np
+        if not NUMPY_AVAILABLE:
+            raise RuntimeError("NumPy not available for frame processing")
         
         try:
             # Get the frame from VapourSynth
@@ -383,7 +418,9 @@ class VapourSynthProcessor(VideoProcessor):
         vs_frame = rgb_frame.get_frame(0)
         
         # Convert VapourSynth frame to numpy array and save using PIL
-        import numpy as np
+        global np
+        if not NUMPY_AVAILABLE:
+            raise RuntimeError("NumPy not available for frame saving")
         from PIL import Image
         
         # Use the built-in frame-to-array conversion
@@ -536,21 +573,25 @@ class PILProcessor(VideoProcessor):
 def create_video_processor():
     """Create appropriate video processor based on available libraries"""
     try:
-        if PROCESSING_MODE == "vapoursynth":
+        # Initialize processing mode if not already done
+        processing_mode = initialize_processing_mode()
+        
+        if processing_mode == "vapoursynth":
             return VapourSynthProcessor()
-        elif PROCESSING_MODE == "opencv":
+        elif processing_mode == "opencv":
             return OpenCVProcessor()
-        elif PROCESSING_MODE == "pil":
+        elif processing_mode == "pil":
             return PILProcessor()
         else:
             raise RuntimeError("No suitable video processing backend available")
     except Exception as e:
         colored_print(f"[ERROR] Failed to create video processor: {e}", Colors.RED, bold=True)
         # Try fallback processors
-        if PROCESSING_MODE != "opencv" and OPENCV_AVAILABLE:
+        processing_mode = initialize_processing_mode()
+        if processing_mode != "opencv" and OPENCV_AVAILABLE:
             colored_print("[WARN] Falling back to OpenCV processor", Colors.YELLOW)
             return OpenCVProcessor()
-        elif PROCESSING_MODE != "pil" and PIL_AVAILABLE:
+        elif processing_mode != "pil" and PIL_AVAILABLE:
             colored_print("[WARN] Falling back to PIL processor", Colors.YELLOW)
             return PILProcessor()
         else:
@@ -1013,7 +1054,10 @@ def get_multiple_sources_config():
                         
                         # Try to show frame as image (if possible)
                         try:
-                            import numpy as np
+                            global np
+                            if not NUMPY_AVAILABLE:
+                                colored_print("[WARN] NumPy not available for frame preview", Colors.YELLOW)
+                                continue
                             from PIL import Image
                             
                             if hasattr(frame, 'get_frame'):
@@ -2693,7 +2737,7 @@ def show_demo():
     else:
         colored_print("[ERROR] NumPy: Not available", Colors.RED)
     
-    colored_print(f"\n[MODE] Active Processing Mode: {PROCESSING_MODE.upper()}", Colors.CYAN, bold=True)
+    colored_print(f"\n[MODE] Active Processing Mode: {initialize_processing_mode().upper()}", Colors.CYAN, bold=True)
 
 def add_frame_info(clip_or_data, title):
     """Add frame information overlay - works with both VapourSynth and fallback modes"""

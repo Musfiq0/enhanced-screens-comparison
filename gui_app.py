@@ -6,11 +6,18 @@ A Windows GUI application for video screenshot comparison with slow.pics upload.
 Built with tkinter for native Windows look and feel.
 """
 
+# Fix for PyInstaller NumPy CPU dispatcher issue
+import os
+import sys
+if hasattr(sys, '_MEIPASS'):
+    # We're in a PyInstaller bundle
+    os.environ.setdefault('NPY_DISABLE_CPU_FEATURES', '')
+    os.environ.setdefault('NUMPY_EXPERIMENTAL_ARRAY_FUNCTION', '0')
+
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import tkinter.scrolledtext as scrolledtext
 import threading
-import os
 import webbrowser
 
 # Try to import drag and drop support
@@ -34,7 +41,7 @@ try:
     from comparev2 import (
         detect_available_libraries, create_video_processor, upload_to_slowpics,
         apply_processing, apply_frame_processing, add_frame_info,
-        Colors, colored_print, print_header, PROCESSING_MODE,
+        Colors, colored_print, print_header, initialize_processing_mode,
         adjust_preview_frames_for_processing
     )
     COMPARISON_CORE_AVAILABLE = True
@@ -570,7 +577,7 @@ class ScreenshotComparisonGUI:
     def _update_processing_info_worker(self):
         """Worker thread for detecting processing libraries"""
         try:
-            mode = detect_available_libraries()
+            mode = initialize_processing_mode()
             
             # Update UI in main thread
             self.root.after(0, lambda: self._update_processing_info_ui(mode))

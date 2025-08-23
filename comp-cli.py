@@ -30,7 +30,7 @@ try:
         get_screenshot_and_upload_config, get_upload_only_config,
         
         # Library availability checks
-        PROCESSING_MODE
+        initialize_processing_mode
     )
 except ImportError as e:
     print(f"Error importing from comparev2.py: {e}")

@@ -44,6 +44,7 @@ def build_executable():
             "--hidden-import=requests",     # Ensure requests is included
             "--hidden-import=requests_toolbelt",  # Ensure requests_toolbelt is included
             "--hidden-import=colorama",     # Ensure colorama is included
+            f"--runtime-hook={current_dir / 'hooks' / 'pyi_rth_numpy_fix.py'}",  # NumPy fix hook
             "--exclude-module=matplotlib",  # Exclude large unused modules
             "--exclude-module=scipy",       # Exclude large unused modules
             "--exclude-module=pandas",      # Exclude large unused modules

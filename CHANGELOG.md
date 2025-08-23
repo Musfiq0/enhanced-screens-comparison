@@ -5,6 +5,27 @@ All notable changes to the Enhanced Screenshot Comparison Tool will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.1] - 2025-08-23
+
+### 🔧 Fixed
+- **NumPy CPU Dispatcher Error** - Fixed "RuntimeError: CPU dispatcher tracer already initialized" that specifically occurred during Source vs Encode comparisons in PyInstaller-built executables
+- **PyInstaller Runtime Hook** - Created dedicated runtime hook (`pyi_rth_numpy_fix.py`) to handle NumPy initialization conflicts in frozen environments  
+- **Lazy Import System** - Replaced direct NumPy imports in VapourSynth processor methods with global references to prevent multiple initialization attempts
+- **Screenshot Generation** - Fixed crashes during frame extraction and PNG saving processes that use NumPy arrays
+- **Environment Variables** - Added proper NPY_DISABLE_CPU_FEATURES setup in runtime hook to prevent CPU dispatcher conflicts
+
+### 🎯 Improved
+- **Error Handling** - Enhanced NumPy import error handling with CPU dispatcher-specific detection and recovery
+- **Build Configuration** - Updated PyInstaller spec file and build scripts to include the new runtime hook automatically
+- **Testing Coverage** - Added comprehensive tests for Source vs Encode scenarios to verify NumPy compatibility
+- **Code Robustness** - Implemented consistent lazy loading pattern for NumPy usage across all video processing backends
+
+### 📝 Technical Details
+- **Runtime Hook**: Created `hooks/pyi_rth_numpy_fix.py` that executes before main application to configure NumPy environment
+- **Fixed Methods**: Updated `VapourSynthProcessor.get_frame()`, `VapourSynthProcessor.save_frame_as_png()`, and frame preview functions
+- **Environment Setup**: Added early NPY_DISABLE_CPU_FEATURES and KMP_DUPLICATE_LIB_OK configuration for PyInstaller compatibility
+- **Import Strategy**: Replaced `import numpy as np` with global `np` references using the centralized `try_import_numpy()` function
+
 ## [3.5.0] - 2025-08-06
 
 ### 🚀 Added
