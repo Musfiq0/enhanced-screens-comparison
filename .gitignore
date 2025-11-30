@@ -47,3 +47,4 @@ $RECYCLE.BIN/
 enhanced-screens-comparison.wiki/
 Screenshots/
 ScreenshotComparison_Portable/
+*.spec

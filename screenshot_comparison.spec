@@ -60,9 +60,9 @@ a = Analysis(
     binaries=[],
     datas=added_files,
     hiddenimports=hiddenimports,
-    hookspath=[str(current_dir / 'hooks')],
+    hookspath=[],
     hooksconfig={},
-    runtime_hooks=[str(current_dir / 'hooks' / 'pyi_rth_numpy_fix.py')],
+    runtime_hooks=[],
     excludes=[
         # Exclude packages that aren't needed to reduce size
         'matplotlib',
