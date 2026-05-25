@@ -10,6 +10,12 @@ import subprocess
 import shutil
 from pathlib import Path
 
+
+def run_pyinstaller_command(arguments, current_dir):
+    """Run PyInstaller through the active Python interpreter."""
+    cmd = [sys.executable, "-m", "PyInstaller"] + arguments
+    return subprocess.run(cmd, check=True, capture_output=True, text=True, cwd=current_dir)
+
 def build_linux_app():
     """Build the Linux application using PyInstaller"""
     print("🐧 Building Enhanced Screenshot Comparison Tool for Linux...")
@@ -28,16 +34,11 @@ def build_linux_app():
     
     if spec_file.exists():
         print("📋 Using advanced build configuration (spec file)")
-        cmd = [
-            "pyinstaller",
-            "--clean",                      # Clean cache
-            str(spec_file)                  # Use spec file
-        ]
+        cmd = ["--clean", str(spec_file)]
     else:
         print("📋 Using standard build configuration")
         # PyInstaller command for Linux
         cmd = [
-            "pyinstaller",
             "--onefile",                    # Create a single executable file
             "--name=ScreenshotComparison",  # Name of the executable
             "--add-data=comparev2.py:.",    # Include the core comparison module
@@ -70,7 +71,7 @@ def build_linux_app():
         print("   This may take several minutes...")
         
         # Run PyInstaller
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        result = run_pyinstaller_command(cmd, current_dir)
         
         print("✅ Build completed successfully!")
         

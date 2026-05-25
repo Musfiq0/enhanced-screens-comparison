@@ -10,6 +10,12 @@ import subprocess
 import shutil
 from pathlib import Path
 
+
+def run_pyinstaller_command(arguments, current_dir):
+    """Run PyInstaller through the active Python interpreter."""
+    cmd = [sys.executable, "-m", "PyInstaller"] + arguments
+    return subprocess.run(cmd, check=True, capture_output=True, text=True, cwd=current_dir)
+
 def build_macos_app():
     """Build the macOS application bundle using PyInstaller"""
     print("🍎 Building Enhanced Screenshot Comparison Tool for macOS...")
@@ -28,16 +34,11 @@ def build_macos_app():
     
     if spec_file.exists():
         print("📋 Using advanced build configuration (spec file)")
-        cmd = [
-            "pyinstaller",
-            "--clean",                      # Clean cache
-            str(spec_file)                  # Use spec file
-        ]
+        cmd = ["--clean", str(spec_file)]
     else:
         print("📋 Using standard build configuration")
         # PyInstaller command for macOS
         cmd = [
-            "pyinstaller",
             "--onedir",                     # Create a directory bundle (better for debugging)
             "--windowed",                   # Hide console window (GUI app)
             "--name=ScreenshotComparison",  # Name of the application
@@ -74,7 +75,7 @@ def build_macos_app():
         print("   This may take several minutes...")
         
         # Run PyInstaller
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        result = run_pyinstaller_command(cmd, current_dir)
         
         print("✅ Build completed successfully!")
         

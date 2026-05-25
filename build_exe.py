@@ -9,12 +9,18 @@ import sys
 import subprocess
 from pathlib import Path
 
+
+def get_build_python(current_dir):
+    """Resolve the Python interpreter that should run PyInstaller."""
+    return sys.executable
+
 def build_executable():
     """Build the executable using PyInstaller"""
     print("🔨 Building Enhanced Screenshot Comparison Tool executable...")
     
     # Get the current directory
     current_dir = Path(__file__).parent
+    build_python = get_build_python(current_dir)
     
     # Check if spec file exists for advanced build
     spec_file = current_dir / "screenshot_comparison.spec"
@@ -22,7 +28,9 @@ def build_executable():
     if spec_file.exists():
         print("📋 Using advanced build configuration (spec file)")
         cmd = [
-            "pyinstaller",
+            build_python,
+            "-m",
+            "PyInstaller",
             "--clean",                      # Clean cache
             str(spec_file)                  # Use spec file
         ]
@@ -30,7 +38,9 @@ def build_executable():
         print("📋 Using standard build configuration")
         # PyInstaller command
         cmd = [
-            "pyinstaller",
+            build_python,
+            "-m",
+            "PyInstaller",
             "--onefile",                    # Create a single executable file
             "--windowed",                   # Hide console window (GUI app)
             "--name=ScreenshotComparison",  # Name of the executable
@@ -201,8 +211,9 @@ def main():
     tools_available = True
     
     try:
-        subprocess.run(["pyinstaller", "--version"], check=True, capture_output=True)
-        print("✅ PyInstaller is available")
+        build_python = get_build_python(Path(__file__).parent)
+        subprocess.run([build_python, "-m", "PyInstaller", "--version"], check=True, capture_output=True)
+        print(f"✅ PyInstaller is available via {build_python}")
     except (subprocess.CalledProcessError, FileNotFoundError):
         print("❌ PyInstaller not found. Install it with: pip install pyinstaller")
         tools_available = False
