@@ -4,16 +4,17 @@ __pycache__/
 *$py.class
 *.so
 .Python
+*.egg-info/
+
+# Virtual environments
 env/
 venv/
+.venv/
 ENV/
-env.bak/
-venv.bak/
 
 # PyInstaller
 build/
 dist/
-*.spec.bak
 
 # IDE
 .vscode/
@@ -26,25 +27,29 @@ dist/
 .DS_Store
 Thumbs.db
 desktop.ini
+$RECYCLE.BIN/
 
-# Project specific
+# Generated files
 Screenshots/
 *.log
+ScreenshotComparison_Portable/
+installer_output/
+installer_setup.iss
 
-# Temporary files
+# Temporary
 *.tmp
 *.temp
 *.bak
+*.md
 
-# Windows
-$RECYCLE.BIN/
-*.cab
-*.msi
-*.msix
-*.msm
-*.msp
-*.lnk
+# Wiki (separate repository)
 enhanced-screens-comparison.wiki/
-Screenshots/
-ScreenshotComparison_Portable/
-*.spec
+
+# VapourSynth portable (large, each user needs their own)
+vapoursynth_portable/
+
+# Future planning documents
+FUTURE_FEATURES.md
+CHANGELOG_v3.6.0.md
+UPGRADE_NOTES_v3.6.0.md
+CLEANUP_SUMMARY.md

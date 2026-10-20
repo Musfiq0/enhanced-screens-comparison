@@ -77,26 +77,34 @@ class SettingsDialog:
         # File Management settings
         file_mgmt_frame = ttk.LabelFrame(main_frame, text="File Management", padding=10)
         file_mgmt_frame.pack(fill='x', pady=(0, 15))
-        
+
         self.clear_before_var = tk.BooleanVar(value=self.config.get('clear_before_generation', False))
-        ttk.Checkbutton(file_mgmt_frame, text="Clear screenshots folder before generating new screenshots", 
+        ttk.Checkbutton(file_mgmt_frame, text="Clear screenshots folder before generating new screenshots",
                        variable=self.clear_before_var).pack(anchor='w')
-        
+
         self.clear_after_upload_var = tk.BooleanVar(value=self.config.get('clear_after_upload', False))
-        ttk.Checkbutton(file_mgmt_frame, text="Clear screenshots folder after successful upload to slow.pics", 
+        ttk.Checkbutton(file_mgmt_frame, text="Clear screenshots folder after successful upload to slow.pics",
                        variable=self.clear_after_upload_var).pack(anchor='w', pady=(5, 0))
-        
+
+        # Visual/Overlay options
+        visual_frame = ttk.LabelFrame(main_frame, text="Visuals/Overlays", padding=10)
+        visual_frame.pack(fill='x', pady=(0, 15))
+
+        self.show_frame_info_var = tk.BooleanVar(value=self.config.get('show_frame_info', True))
+        ttk.Checkbutton(visual_frame, text="Show Frame Info on Screenshots",
+                       variable=self.show_frame_info_var).pack(anchor='w')
+
         # Frame selection
         frame_frame = ttk.LabelFrame(main_frame, text="Frame Selection", padding=10)
         frame_frame.pack(fill='x', pady=(0, 15))
-        
+
         # Determine current method (check explicit frame_method first, then fallback to custom_frames existence)
         current_method = self.config.get('frame_method', 'interval')
-        if current_method not in ['interval', 'custom']:
+        if current_method not in ['interval', 'custom', 'random']:
             current_method = 'custom' if self.config.get('custom_frames') else 'interval'
-        
+
         self.frame_method_var = tk.StringVar(value=current_method)
-        ttk.Radiobutton(frame_frame, text="Use frame interval", 
+        ttk.Radiobutton(frame_frame, text="Use frame interval",
                        variable=self.frame_method_var, value='interval',
                        command=self.on_frame_method_change).pack(anchor='w')
         
@@ -109,12 +117,14 @@ class SettingsDialog:
                    width=10).pack(side='left', padx=(5, 0))
         ttk.Label(interval_frame, text="frames").pack(side='left', padx=(5, 0))
         
-        ttk.Radiobutton(frame_frame, text="Specify custom frame numbers", 
+        ttk.Radiobutton(frame_frame, text="Specify custom frame numbers",
                        variable=self.frame_method_var, value='custom',
                        command=self.on_frame_method_change).pack(anchor='w', pady=(10, 0))
-        
+
         custom_frame = ttk.Frame(frame_frame)
         custom_frame.pack(fill='x', padx=(20, 0))
+
+        ttk.Label(custom_frame, text="Frames:").pack(side='left')
         
         ttk.Label(custom_frame, text="Frames:").pack(side='left')
         
@@ -127,8 +137,17 @@ class SettingsDialog:
         self.custom_frames_var = tk.StringVar(value=custom_frames_str or "100,500,1000")
         self.custom_frames_entry = ttk.Entry(custom_frame, textvariable=self.custom_frames_var, width=30)
         self.custom_frames_entry.pack(side='left', padx=(5, 0))
-        
+
         ttk.Label(custom_frame, text="(comma-separated)").pack(side='left', padx=(5, 0))
+
+        ttk.Radiobutton(frame_frame, text="Random frame selection (30-35 frames, distributed)",
+                       variable=self.frame_method_var, value='random',
+                       command=self.on_frame_method_change).pack(anchor='w', pady=(10, 0))
+
+        random_info = ttk.Frame(frame_frame)
+        random_info.pack(fill='x', padx=(20, 0))
+        ttk.Label(random_info, text="Automatically selects random frames throughout video",
+                 font=('TkDefaultFont', 8, 'italic'), foreground='gray').pack(anchor='w')
         
         # Upload settings
         upload_frame = ttk.LabelFrame(main_frame, text="slow.pics Upload", padding=10)
@@ -273,10 +292,15 @@ class SettingsDialog:
         # Update config with current values
         self.config['clear_before_generation'] = self.clear_before_var.get()
         self.config['clear_after_upload'] = self.clear_after_upload_var.get()
-        
+        self.config['show_frame_info'] = self.show_frame_info_var.get()
+
         if self.frame_method_var.get() == 'interval':
             self.config['frame_interval'] = self.interval_var.get()
             self.config['custom_frames'] = None
+        elif self.frame_method_var.get() == 'random':
+            # Random frame selection
+            self.config['frame_interval'] = None
+            self.config['custom_frames'] = "RANDOM"  # Special marker for random selection
         else:
             try:
                 frames_text = self.custom_frames_var.get().strip()
@@ -292,7 +316,8 @@ class SettingsDialog:
         
         self.config['upload_to_slowpics'] = self.upload_var.get()
         self.config['show_name'] = self.show_name_var.get().strip()
-        
+        self.config['frame_method'] = self.frame_method_var.get()  # Store the method
+
         if self.is_series_var.get():
             self.config['season_number'] = f"S{self.season_var.get():02d}"
             if self.is_episode_var.get():
@@ -335,9 +360,10 @@ class ScreenshotComparisonGUI:
             'season_number': '',
             'episode_number': '',
             'clear_before_generation': False,
-            'clear_after_upload': False
+            'clear_after_upload': False,
+            'show_frame_info': True
         }
-        
+
         # Stop event for screenshot generation
         self.stop_event = threading.Event()
         self.generation_active = False
@@ -1025,8 +1051,16 @@ class ScreenshotComparisonGUI:
                 frames = sorted(list(set(f for f in adjusted_preview_frames if 0 <= f < total_frames)))
                 self.root.after(0, lambda: self.status_label.config(text=f"Using {len(frames)} adjusted frames from preview..."))
                 print(f"[GUI] Preview frames: {len(preview_frames)} original → {len(frames)} adjusted")
+            elif self.config['custom_frames'] == "RANDOM":
+                # Random frame selection - generate 30-35 random frames
+                import random
+                num_frames = random.randint(30, 35)
+                frames = sorted(random.sample(range(total_frames), min(num_frames, total_frames)))
+                self.root.after(0, lambda: self.status_label.config(text=f"Generated {len(frames)} random frames..."))
+                print(f"[GUI] Random frame selection: {len(frames)} frames")
             elif self.config['custom_frames']:
-                frames = [f for f in self.config['custom_frames'] if 0 <= f < total_frames]
+                # Convert custom frames to integers and filter valid range
+                frames = [int(f) for f in self.config['custom_frames'] if str(f).isdigit() and 0 <= int(f) < total_frames]
             else:
                 frames = list(range(0, total_frames, self.config['frame_interval']))
             
@@ -1056,16 +1090,25 @@ class ScreenshotComparisonGUI:
             
             # Add frame info to clips
             video_info_clips = []
+            show_frame_info = self.config.get('show_frame_info', True)
+
             for video in processed_videos:
                 if processor.mode == "vapoursynth":
-                    video_info_clip = add_frame_info(video['clip'], video['name'])
+                    if show_frame_info:
+                        video_info_clip = add_frame_info(video['clip'], video['name'])
+                    else:
+                        video_info_clip = video['clip']
                     video_info_clips.append({
                         'clip': video_info_clip,
                         'name': video['name']
                     })
                 else:
+                    if show_frame_info:
+                        clip = add_frame_info(video['clip'], video['name'])
+                    else:
+                        clip = video['clip']
                     video_info_clips.append({
-                        'clip': add_frame_info(video['clip'], video['name']),
+                        'clip': clip,
                         'name': video['name']
                     })
             

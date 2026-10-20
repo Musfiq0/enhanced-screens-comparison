@@ -67,6 +67,57 @@ def try_import_vapoursynth():
     """Try to import VapourSynth and related libraries"""
     global vs, awf, core, VAPOURSYNTH_AVAILABLE
     try:
+        import os
+
+        # Setup paths for both PyInstaller bundle and running from source
+        if hasattr(sys, '_MEIPASS'):
+            # PyInstaller bundle
+            bundle_dir = sys._MEIPASS
+            plugins_dir = os.path.join(bundle_dir, 'vapoursynth_plugins')
+            vsscript = os.path.join(bundle_dir, 'vsscript.dll')
+        else:
+            # Running from source - use local vapoursynth_portable directory
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            portable_dir = os.path.join(script_dir, 'vapoursynth_portable')
+            if os.path.isdir(portable_dir):
+                bundle_dir = portable_dir
+                plugins_dir = os.path.join(portable_dir, 'plugins')
+                vsscript = os.path.join(portable_dir, 'vsscript.dll')
+            else:
+                bundle_dir = None
+                plugins_dir = None
+                vsscript = None
+
+        # Configure VapourSynth to use our portable directory
+        if bundle_dir and os.path.isdir(bundle_dir):
+            # Set plugin autoload path
+            if plugins_dir and os.path.isdir(plugins_dir):
+                os.environ['VAPOURSYNTH_AUTOLOAD_USERFOLDERPATH'] = plugins_dir
+
+            # Set vsscript.dll path
+            if vsscript and os.path.isfile(vsscript):
+                os.environ['VSSCRIPT_PATH'] = vsscript
+
+            # Add DLL directories for Windows to find dependencies
+            if hasattr(os, 'add_dll_directory'):
+                try:
+                    os.add_dll_directory(bundle_dir)
+                    if plugins_dir and os.path.isdir(plugins_dir):
+                        os.add_dll_directory(plugins_dir)
+                        # Also add vsrepo subfolder if it exists
+                        vsrepo_dir = os.path.join(plugins_dir, 'vsrepo')
+                        if os.path.isdir(vsrepo_dir):
+                            os.add_dll_directory(vsrepo_dir)
+                except OSError:
+                    pass
+
+            # Add to PATH as fallback
+            current_path = os.environ.get('PATH', '')
+            if bundle_dir not in current_path:
+                os.environ['PATH'] = bundle_dir + os.pathsep + current_path
+            if plugins_dir and plugins_dir not in current_path:
+                os.environ['PATH'] = plugins_dir + os.pathsep + os.environ['PATH']
+
         import vapoursynth as vs_module
         vs = vs_module
         core = vs.core
@@ -85,34 +136,6 @@ def try_import_vapoursynth():
         return True
     except ImportError as e:
         colored_print(f"[ERROR] VapourSynth not available: {e}", Colors.RED)
-        return False
-
-def try_import_opencv():
-    """Try to import OpenCV"""
-    global cv2, OPENCV_AVAILABLE
-    try:
-        import cv2 as cv2_module
-        cv2 = cv2_module
-        OPENCV_AVAILABLE = True
-        colored_print("[OK] OpenCV detected and imported successfully", Colors.GREEN)
-        return True
-    except ImportError as e:
-        colored_print(f"[ERROR] OpenCV not available: {e}", Colors.RED)
-        return False
-
-def try_import_pil():
-    """Try to import PIL/Pillow"""
-    global PIL_Image, PIL_ImageDraw, PIL_ImageFont, PIL_AVAILABLE
-    try:
-        from PIL import Image, ImageDraw, ImageFont
-        PIL_Image = Image
-        PIL_ImageDraw = ImageDraw
-        PIL_ImageFont = ImageFont
-        PIL_AVAILABLE = True
-        colored_print("[OK] PIL/Pillow detected and imported successfully", Colors.GREEN)
-        return True
-    except ImportError as e:
-        colored_print(f"[ERROR] PIL/Pillow not available: {e}", Colors.RED)
         return False
 
 def try_import_numpy():
@@ -157,31 +180,18 @@ def try_import_numpy():
 def detect_available_libraries():
     """Detect which libraries are available and set up the processing mode"""
     colored_print("[INFO] Detecting available video processing libraries...", Colors.CYAN, bold=True)
-    
-    # Try to import all libraries
+
     vs_available = try_import_vapoursynth()
-    cv_available = try_import_opencv() 
-    pil_available = try_import_pil()
     numpy_available = try_import_numpy()
-    
-    if vs_available:
+
+    if vs_available and numpy_available:
         colored_print("\n[MODE] Using VapourSynth mode (high-quality video processing)", Colors.GREEN, bold=True)
         return "vapoursynth"
-    elif cv_available and numpy_available:
-        colored_print("\n[MODE] Using OpenCV fallback mode (basic video processing)", Colors.BLUE, bold=True)
-        if not pil_available:
-            colored_print("[WARN] PIL not available - text overlays will be simplified", Colors.YELLOW)
-        return "opencv"
-    elif pil_available and numpy_available:
-        colored_print("\n[MODE] Using PIL fallback mode (basic image processing)", Colors.MAGENTA, bold=True)
-        colored_print("[WARN] Limited video format support without OpenCV", Colors.YELLOW)
-        return "pil"
     else:
-        colored_print("\n[ERROR] No suitable video processing libraries found!", Colors.RED, bold=True)
-        colored_print("Please install one of the following:", Colors.YELLOW, bold=True)
-        colored_print("  - VapourSynth (recommended): pip install vapoursynth", Colors.WHITE)
-        colored_print("  - OpenCV: pip install opencv-python", Colors.WHITE)
-        colored_print("  - PIL + NumPy: pip install pillow numpy", Colors.WHITE)
+        colored_print("\n[ERROR] VapourSynth or NumPy is not available!", Colors.RED, bold=True)
+        colored_print("Please install required libraries:", Colors.YELLOW, bold=True)
+        colored_print("  - VapourSynth: pip install vapoursynth", Colors.WHITE)
+        colored_print("  - NumPy: pip install numpy", Colors.WHITE)
         sys.exit(1)
 
 # Initialize processing mode - but handle it safely for PyInstaller
@@ -250,17 +260,20 @@ class VapourSynthProcessor(VideoProcessor):
             
     def load_video(self, path: str):
         """Load video using VapourSynth"""
+        errors = []
         try:
             return core.lsmas.LWLibavSource(path)
         except Exception as e:
-            # Fallback to other source filters
+            errors.append(f"lsmas: {e}")
             try:
                 return core.ffms2.Source(path)
-            except:
+            except Exception as e:
+                errors.append(f"ffms2: {e}")
                 try:
                     return core.bs.VideoSource(path)
-                except:
-                    raise RuntimeError(f"Could not load video {path}: {e}")
+                except Exception as e:
+                    errors.append(f"bs: {e}")
+                    raise RuntimeError(f"Could not load video {path}. Errors: {'; '.join(errors)}")
                     
     def get_frame_count(self, video) -> int:
         """Get frame count from VapourSynth clip"""
@@ -281,47 +294,31 @@ class VapourSynthProcessor(VideoProcessor):
             
             # Convert to RGB first to standardize format
             if original_format != 'RGB24':
-                # Use a more robust conversion approach with proper colorspace handling
+                # Always specify matrix_in_s for YUV to RGB conversion to avoid "no path between colorspaces" error
                 try:
-                    # First try simple format conversion
-                    rgb_clip = core.resize.Bicubic(video, format=vs.RGB24)
+                    # Try BT.709 matrix first (most common for HD content)
+                    rgb_clip = core.resize.Bicubic(video, format=vs.RGB24, matrix_in_s="709")
                     frame_vs = rgb_clip.get_frame(frame_number)
                 except vs.Error as e:
-                    colored_print(f"[DEBUG] Simple RGB conversion failed for {original_format}: {e}", Colors.YELLOW)
-                    # If that fails, try with explicit colorspace conversion
+                    # BT.709 failed, try BT.601 (SD content)
                     try:
-                        # Convert to YUV444P16 first, then to RGB with proper matrix
-                        yuv_clip = core.resize.Bicubic(video, format=vs.YUV444P16)
-                        rgb_clip = core.resize.Bicubic(yuv_clip, format=vs.RGB24, matrix_in_s="709")
+                        rgb_clip = core.resize.Bicubic(video, format=vs.RGB24, matrix_in_s="170m")
                         frame_vs = rgb_clip.get_frame(frame_number)
-                        colored_print(f"[DEBUG] Converted {original_format} via YUV444P16 with BT.709 matrix", Colors.GREEN)
                     except vs.Error as e:
-                        colored_print(f"[DEBUG] BT.709 conversion failed: {e}", Colors.YELLOW)
-                        # Try different color matrices
+                        # Try BT.470BG (PAL)
                         try:
-                            # Try with BT.470 matrix (for older content)
                             rgb_clip = core.resize.Bicubic(video, format=vs.RGB24, matrix_in_s="470bg")
                             frame_vs = rgb_clip.get_frame(frame_number)
-                            colored_print(f"[DEBUG] Converted {original_format} with BT.470 matrix", Colors.GREEN)
                         except vs.Error as e:
-                            colored_print(f"[DEBUG] BT.470 conversion failed: {e}", Colors.YELLOW)
+                            # Final fallback: convert to YUV444P16 first, then to RGB
                             try:
-                                # Try with BT.601 matrix
-                                rgb_clip = core.resize.Bicubic(video, format=vs.RGB24, matrix_in_s="170m")
+                                yuv_clip = core.resize.Bicubic(video, format=vs.YUV444P16, matrix_s="709")
+                                rgb_clip = core.resize.Bicubic(yuv_clip, format=vs.RGB24, matrix_in_s="709")
                                 frame_vs = rgb_clip.get_frame(frame_number)
-                                colored_print(f"[DEBUG] Converted {original_format} with BT.601 matrix", Colors.GREEN)
                             except vs.Error as e:
-                                colored_print(f"[DEBUG] BT.601 conversion failed: {e}", Colors.YELLOW)
-                                # Try without matrix specification (auto-detect)
-                                try:
-                                    rgb_clip = core.resize.Bicubic(video, format=vs.RGB24, matrix_in=1)
-                                    frame_vs = rgb_clip.get_frame(frame_number)
-                                    colored_print(f"[DEBUG] Converted {original_format} with auto-detect matrix", Colors.GREEN)
-                                except vs.Error as e:
-                                    colored_print(f"[DEBUG] Auto-detect conversion failed: {e}", Colors.YELLOW)
-                                    # Final fallback: use original format without conversion
-                                    colored_print(f"[WARN] Could not convert {original_format} to RGB24, using original format", Colors.YELLOW)
-                                    frame_vs = video.get_frame(frame_number)
+                                # Use original format without conversion
+                                colored_print(f"[WARN] Could not convert {original_format} to RGB24, using original format", Colors.YELLOW)
+                                frame_vs = video.get_frame(frame_number)
             
             # Use the proper VapourSynth frame conversion method
             # This avoids the PEP 3118 buffer format issues
@@ -575,27 +572,14 @@ def create_video_processor():
     try:
         # Initialize processing mode if not already done
         processing_mode = initialize_processing_mode()
-        
+
         if processing_mode == "vapoursynth":
             return VapourSynthProcessor()
-        elif processing_mode == "opencv":
-            return OpenCVProcessor()
-        elif processing_mode == "pil":
-            return PILProcessor()
         else:
             raise RuntimeError("No suitable video processing backend available")
     except Exception as e:
         colored_print(f"[ERROR] Failed to create video processor: {e}", Colors.RED, bold=True)
-        # Try fallback processors
-        processing_mode = initialize_processing_mode()
-        if processing_mode != "opencv" and OPENCV_AVAILABLE:
-            colored_print("[WARN] Falling back to OpenCV processor", Colors.YELLOW)
-            return OpenCVProcessor()
-        elif processing_mode != "pil" and PIL_AVAILABLE:
-            colored_print("[WARN] Falling back to PIL processor", Colors.YELLOW)
-            return PILProcessor()
-        else:
-            raise RuntimeError(f"Failed to create any video processor: {e}")
+        raise RuntimeError(f"Failed to create video processor: {e}")
 
 # Global processor instance
 processor = create_video_processor()
@@ -1645,14 +1629,14 @@ def adjust_preview_frames_for_processing(preview_frames, video_configs):
 def get_screenshot_and_upload_config(videos=None):
     """Get screenshot options and upload configuration"""
     print("\n--- Screenshot Options ---")
-    
+
     # Check if any video has preview-selected frames
     preview_frames = []
     if videos:
         for video in videos:
             if 'preview_selected_frames' in video and video['preview_selected_frames']:
                 preview_frames.extend(video['preview_selected_frames'])
-    
+
     if preview_frames:
         # Adjust preview frames for trimming/padding operations
         adjusted_preview_frames = adjust_preview_frames_for_processing(preview_frames, videos)
@@ -1699,14 +1683,15 @@ def get_screenshot_and_upload_config(videos=None):
         print("Choose frame selection method:")
         print("1. Use frame interval (e.g., every 150 frames)")
         print("2. Specify custom frame numbers")
-        
+        print("3. Random frame selection (30-35 frames distributed throughout video)")
+
         while True:
             try:
-                choice = int(input("Enter choice (1 or 2): "))
-                if choice in [1, 2]:
+                choice = int(input("Enter choice (1-3): "))
+                if choice in [1, 2, 3]:
                     break
                 else:
-                    print("Please enter 1 or 2.")
+                    print("Please enter 1, 2, or 3.")
             except ValueError:
                 print("Please enter a valid number.")
         
@@ -1718,7 +1703,7 @@ def get_screenshot_and_upload_config(videos=None):
                 frame_interval = 150
                 print("Invalid input, using default value (150)")
             custom_frames = None
-        else:
+        elif choice == 2:
             # Custom frames
             frame_interval = None
             custom_frames_input = input("Enter comma-separated frame numbers (e.g., 100,500,1000): ")
@@ -1732,6 +1717,18 @@ def get_screenshot_and_upload_config(videos=None):
                 # Use default frames instead of switching to interval
                 custom_frames = [100, 500, 1000]
                 print("Invalid frame numbers, using default custom frames: 100, 500, 1000")
+        else:
+            # Random frame selection
+            frame_interval = None
+            colored_print("\n[RANDOM] Random frame selection mode", Colors.MAGENTA, bold=True)
+            colored_print("Will select 30-35 random frames distributed throughout the video", Colors.CYAN)
+            colored_print("(Automatically skips openings/endings)", Colors.BLUE)
+
+            # Import random frame selection
+            from comparev2_random_frames import select_random_frames
+
+            # We'll set this as a special marker and calculate actual frames later when we know total frames
+            custom_frames = "RANDOM"  # Special marker
     
     # Get slow.pics upload options
     print("\n--- slow.pics Upload Options ---")
@@ -2739,29 +2736,32 @@ def show_demo():
     
     colored_print(f"\n[MODE] Active Processing Mode: {initialize_processing_mode().upper()}", Colors.CYAN, bold=True)
 
-def add_frame_info(clip_or_data, title):
+def add_frame_info(clip_or_data, title, show_info=True):
     """Add frame information overlay - works with both VapourSynth and fallback modes"""
     if processor.mode == "vapoursynth":
+        if not show_info:
+            return clip_or_data
+
         def frame_props(n, f):
             # Get frame type (I, P, B frame)
             frame_type = f.props.get('_PictType', b'?').decode('utf-8') if '_PictType' in f.props else '?'
-            
+
             # Create enhanced text with emojis and better formatting
             main_text = f"Frame: {n:06d} | {frame_type}-Frame | {title}"
-            
+
             # Use the basic VapourSynth text function with correct parameters
             # alignment=7 is top-left, scale makes text larger
             text_clip = core.text.Text(clip_or_data, main_text, alignment=7, scale=1)
-            
+
             return text_clip
-        
+
         return core.std.FrameEval(clip_or_data, frame_props, prop_src=clip_or_data)
     else:
         # For non-VapourSynth modes, return data structure with overlay info
         return {
             'data': clip_or_data,
             'title': title,
-            'overlay_enabled': True
+            'overlay_enabled': show_info
         }
 
 def apply_frame_processing(video_data, frame_number):
@@ -2923,12 +2923,27 @@ def process_and_generate_screenshots(config):
     total_frames = min(video['processed_frames'] for video in processed_videos)
 
     if config.get('custom_frames'):
-        # Use custom frame numbers
-        frames = [f for f in config['custom_frames'] if 0 <= f < total_frames]
-        colored_print(f"\n[MODE] Using custom frames: {frames}", Colors.BLUE, bold=True)
-        if len(frames) != len(config['custom_frames']):
-            excluded = [f for f in config['custom_frames'] if f >= total_frames]
-            colored_print(f"[WARN] Excluded frames beyond video length: {excluded}", Colors.YELLOW)
+        # Check if this is random frame selection
+        if config['custom_frames'] == "RANDOM":
+            # Import and use random frame selection
+            from comparev2_random_frames import select_random_frames, get_frame_distribution_stats
+
+            colored_print(f"\n[RANDOM] Selecting random frames from {total_frames} total frames", Colors.MAGENTA, bold=True)
+            frames = select_random_frames(total_frames)
+
+            # Show statistics
+            stats = get_frame_distribution_stats(frames, total_frames)
+            colored_print(f"[✓] Selected {len(frames)} random frames", Colors.GREEN, bold=True)
+            colored_print(f"[STATS] Coverage: {stats['coverage_percent']:.1f}% of video", Colors.CYAN)
+            colored_print(f"[STATS] Average gap: {stats['avg_gap']:.0f} frames", Colors.CYAN)
+            colored_print(f"[FRAMES] Frame numbers: {frames[:10]}... (showing first 10)", Colors.BLUE)
+        else:
+            # Use custom frame numbers
+            frames = [f for f in config['custom_frames'] if 0 <= f < total_frames]
+            colored_print(f"\n[MODE] Using custom frames: {frames}", Colors.BLUE, bold=True)
+            if len(frames) != len(config['custom_frames']):
+                excluded = [f for f in config['custom_frames'] if f >= total_frames]
+                colored_print(f"[WARN] Excluded frames beyond video length: {excluded}", Colors.YELLOW)
     else:
         # Use frame interval
         frames = list(range(0, total_frames, config['frame_interval']))
@@ -2939,9 +2954,10 @@ def process_and_generate_screenshots(config):
     colored_print(f"[📈] Total screenshots to generate: {len(frames) * len(processed_videos)}", Colors.MAGENTA, bold=True)
 
     # Apply frame info to all video clips
+    show_info = config.get('show_frame_info', True)
     for i, video in enumerate(processed_videos):
         if processor.mode == "vapoursynth":
-            video_info_clip = add_frame_info(video['clip'], video['name'])
+            video_info_clip = add_frame_info(video['clip'], video['name'], show_info)
             video_info_clips.append({
                 'clip': video_info_clip,
                 'name': video['name']
@@ -2949,7 +2965,7 @@ def process_and_generate_screenshots(config):
         else:
             # For fallback modes, store processing data
             video_info_clips.append({
-                'clip': add_frame_info(video['clip'], video['name']),
+                'clip': add_frame_info(video['clip'], video['name'], show_info),
                 'name': video['name']
             })
 

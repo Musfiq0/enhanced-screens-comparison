@@ -5,6 +5,46 @@ All notable changes to the Enhanced Screenshot Comparison Tool will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.6.1] - 2026-10-20
+
+### 🗑️ Removed
+- **Portable Exe Builds** - Removed all portable executable build functionality per project direction
+  - Deleted `build.py`, `screenshot_comparison_fixed.spec`, and PyInstaller hooks
+  - Deleted `BUILD_INSTRUCTIONS.md` and related build documentation
+  - Application now runs from source only (CLI and GUI modes)
+  - Users install via pip and run with Python
+
+### 🐛 Fixed
+- **Custom Frames TypeError** - Fixed `'<=' not supported between instances of 'int' and 'str'` error
+  - Custom frame inputs were strings but comparison logic expected integers
+  - Added proper string to integer conversion: `[int(f) for f in self.config['custom_frames'] if str(f).isdigit() and 0 <= int(f) < total_frames]`
+  
+- **Random Frame Selection** - Fixed "No valid frames to process" error when using random frame option
+  - Added explicit check for `self.config['custom_frames'] == "RANDOM"` before attempting iteration
+  - Properly generates 30-35 random frames when random selection is chosen
+  - Fixed character-by-character iteration bug on "RANDOM" string marker
+
+- **VapourSynth Colorspace Conversion** - Fixed "Resize error 3074: no path between colorspaces" error
+  - Now always specifies `matrix_in_s` parameter when converting YUV to RGB
+  - Tries BT.709 matrix first (most common for HD content)
+  - Falls back to BT.601 (170m) for SD content
+  - Further fallback to BT.470BG if needed
+  - Comprehensive error handling ensures video loading succeeds
+
+### 📚 Updated
+- **Documentation** - Updated all documentation to reflect CLI/GUI-only approach
+  - Removed portable exe references from README.md
+  - Updated installation instructions to focus on running from source
+  - Removed build instructions sections
+  - Added troubleshooting for frame extraction issues
+  - Updated version badges and changelog references
+
+### 🎯 Technical Details
+- **gui_app.py** (lines 1054-1065): Fixed custom frames and random frame selection logic
+- **comparev2.py** (lines 295-322): Enhanced VapourSynth colorspace conversion with matrix specification
+- **comparev2.py** (lines 66-110): Maintained VapourSynth portable directory support for source execution
+- **.gitignore**: Added future planning documents (FUTURE_FEATURES.md, CHANGELOG_v3.6.0.md, etc.)
+
 ## [3.5.1] - 2025-08-23
 
 ### 🔧 Fixed
